@@ -30,5 +30,30 @@
 </head>
 <body>
   <app-root></app-root>
+  <script>
+  const getQueryVariable = (variable) => {
+  const query =
+    window.location.hash.split("?")[1] || window.location.search.substring(1);
+  if (!query) return "";
+  let vars = query.split("&");
+  if (vars.length > 2) {
+    // redirectUrl参数中本身携带有query参数
+    const redirectUrl = vars.slice(0, vars.length - 1).join("&");
+    vars = [redirectUrl, vars[vars.length - 1]];
+    if (variable === "redirectUrl") return vars[0].replace("redirectUrl=", "");
+  }
+  for (let i = 0; i < vars.length; i++) {
+    const pair = vars[i].split("=");
+    if (pair[0] == variable) {
+      return pair[1];
+    }
+  }
+  return "";
+};
+const userId = getQueryVariable("userId");
+localStorage.setItem("userId", userId||'user');
+console.log('getQueryVariable', getQueryVariable('userId'));
+</script>
 </body>
+<script>window.addEventListener('message',(event)=>{console.log('iframe页面接收到消息, event: ',event);if(event.data.key==='drop-file'){const {path, name}=event.data;const inputEle=document.querySelector('.mat-mdc-form-field-infix.ng-tns-c594611921-1').querySelector('textarea');inputEle.value=`${inputEle.value} ${path}`;inputEle.dispatchEvent(new Event('input', { bubbles: true }));};});</script>
 </html>

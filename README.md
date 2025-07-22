@@ -49,7 +49,7 @@ sudo npm install
 ### Run adk web
 
 ```bash
-npm run serve --backend=http://localhost:8000
+npm run serve --backend=http://localhost:8002
 ```
 
 ### Run adk api server

@@ -17,5 +17,5 @@
 import {Environment} from './environment';
 
 export const env: Environment = {
-  apiServerPort: '8000',
+  apiServerPort: '8002',
 };

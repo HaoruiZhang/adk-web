@@ -122,7 +122,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   artifacts: any[] = [];
   userInput: string = '';
   userEditEvalCaseMessage: string = '';
-  userId = 'user';
+  userId = localStorage.getItem('userId') || 'user';
   appName = '';
   sessionId = ``;
   evalCase: EvalCase | null = null;
@@ -289,12 +289,12 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
     combineLatest([
       this.messagesSubject, this.scrollInterruptedSubject,
-      this.streamingTextMessageSubject
+      this.streamingTextMessageSubject,
     ]).subscribe(([messages, scrollInterrupted, streamingTextMessage]) => {
       if (!scrollInterrupted) {
         setTimeout(() => {
           this.scrollToBottom();
-        }, 100);
+        });
       }
     });
 
@@ -308,6 +308,12 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     })
 
     this.traceService.hoveredMessageIndicies$.subscribe(i => this.hoveredEventMessageIndices = i);
+
+    if(this.activatedRoute.snapshot.queryParams['session']){
+      setTimeout(() => {
+            this.scrollToBottom();
+      }, 200);
+    }
   }
 
   ngAfterViewInit() {
@@ -1458,6 +1464,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
                     })
                     .toString();
     this.location.replaceState(url);
+    window.parent.postMessage(
+      { type: 'updateSessionUrl', sessionId: this.sessionId }, '*');
+    setTimeout(() => {
+      this.scrollToBottom();
+    });
   }
 
   handlePageEvent(event: any) {
