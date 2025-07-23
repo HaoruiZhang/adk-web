@@ -108,7 +108,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('bottomPanel') bottomPanelRef!: ElementRef;
   private _snackBar = inject(MatSnackBar);
   shouldShowEvalTab = signal(true);
-  enableSseIndicator = signal(false);
+  enableSseIndicator = signal(true);
   isChatMode = signal(true);
   isEvalCaseEditing = signal(false);
   hasEvalCaseChanged = signal(false);
@@ -1465,7 +1465,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
                     .toString();
     this.location.replaceState(url);
     window.parent.postMessage(
-      { type: 'updateSessionUrl', sessionId: this.sessionId }, '*');
+      { key: 'updateSessionUrl', type: 'updateSessionUrl', sessionId: this.sessionId }, '*');
     setTimeout(() => {
       this.scrollToBottom();
     });

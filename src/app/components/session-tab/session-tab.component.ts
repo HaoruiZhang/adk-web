@@ -56,6 +56,7 @@ export class SessionTabComponent implements OnInit {
                   Number(b.lastUpdateTime) - Number(a.lastUpdateTime),
           );
           this.sessionList = res;
+          console.log('Session list updated:', this.sessionList);
         });
   }
 

@@ -47,6 +47,10 @@
   font-weight: 500;
   line-height: 20px;
   letter-spacing: 0.25px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  width: 100%;
 }
 
 .session-date {
@@ -61,4 +65,5 @@
 
 .session-info {
   padding: 11px;
+  width: calc(100% - 22px)
 }
