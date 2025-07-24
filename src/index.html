@@ -35,17 +35,22 @@
   const query =
     window.location.hash.split("?")[1] || window.location.search.substring(1);
   if (!query) return "";
-  let vars = query.split("&");
-  if (vars.length > 2) {
+  const vars1 = query.split("redirectUrl=");
+  if (vars1.length > 1) {
     // redirectUrl参数中本身携带有query参数
-    const redirectUrl = vars.slice(0, vars.length - 1).join("&");
-    vars = [redirectUrl, vars[vars.length - 1]];
-    if (variable === "redirectUrl") return vars[0].replace("redirectUrl=", "");
-  }
-  for (let i = 0; i < vars.length; i++) {
-    const pair = vars[i].split("=");
-    if (pair[0] == variable) {
-      return pair[1];
+    const queryParams = vars1[0];
+    const redirectUrl = vars1[1];
+    if (variable === "redirectUrl") return redirectUrl;
+    return queryParams.split("&").find(param => param.startsWith(variable + "="))?.split("=")[1] || "";
+  } else {
+    let vars2 = vars1[0].split("&");
+    console.log("getQueryVariable1", variable, vars2);
+    for (let i = 0; i < vars2.length; i++) {
+      const pair = vars2[i].split("=");
+      console.log("getQueryVariable pair", pair);
+      if (pair[0] == variable) {
+        return pair[1];
+      }
     }
   }
   return "";
