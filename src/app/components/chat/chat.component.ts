@@ -452,7 +452,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         if (chunkJson.content) {
           for (let part of chunkJson.content.parts) {
             index += 1;
-            this.processPart(chunkJson, part, index);
+            this.processPart(chunkJson, part, index, chunkJson.author);
             this.traceService.setEventData(this.eventData);
           }
         } else if (chunkJson.errorMessage) {
@@ -490,7 +490,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         {text: chunkJson.errorMessage, role: 'bot'})
   }
 
-  private processPart(chunkJson: any, part: any, index: number) {
+  private processPart(chunkJson: any, part: any, index: number, author: string = 'bot') {
     const renderedContent =
       chunkJson.groundingMetadata?.searchEntryPoint?.renderedContent;
 
@@ -524,10 +524,15 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         this.insertMessageBeforeLoadingMessage(this.streamingTextMessage);
-
         if (!this.useSse) {
           this.storeEvents(part, chunkJson, index);
           this.eventMessageIndexArray[index] = newChunk;
+          if (author === 'workflow_agent'){
+            window.parent.postMessage(
+              { key: 'renderTextMessage', type: 'renderTextMessage', text: this.streamingTextMessage.text }, 
+              '*'
+            );
+          }
           this.streamingTextMessage = null;
           return;
         }
@@ -545,6 +550,12 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         this.streamingTextMessage.text += newChunk;
         this.streamingTextMessageSubject.next(this.streamingTextMessage);
+        if (author === 'workflow_agent'){
+          window.parent.postMessage(
+            { key: 'renderTextMessage', type: 'renderTextMessage', text: this.streamingTextMessage.text }, 
+            '*'
+          );
+        }
       }
     } else if (!part.thought) {
       this.isModelThinkingSubject.next(false);
@@ -851,7 +862,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       if (e.content) {
         for (let part of e.content.parts) {
           index += 1;
-          this.processPart(e, part, index);
+          this.processPart(e, part, index, e.author);
         }
       }
     }
