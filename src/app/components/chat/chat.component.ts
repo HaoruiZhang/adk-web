@@ -948,7 +948,17 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if(!this.messages.length){
+      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId);
+    }
     this.webSocketService.closeConnection();
+  }
+  // 监听浏览器关闭或刷新
+  @HostListener('window:beforeunload', ['$event'])
+  handleBeforeUnload(event: Event) {
+    if (!this.messages.length) {
+      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId).subscribe();
+    }
   }
 
   onAppSelection(event: any) {
