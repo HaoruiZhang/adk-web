@@ -529,7 +529,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           this.eventMessageIndexArray[index] = newChunk;
           if (author === 'workflow_agent'){
             window.parent.postMessage(
-              { key: 'renderTextMessage', type: 'renderTextMessage', text: this.streamingTextMessage.text }, 
+              { key: 'workflowContent', type: 'workflowContent', text: this.streamingTextMessage.text }, 
               '*'
             );
           }
@@ -552,7 +552,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         this.streamingTextMessageSubject.next(this.streamingTextMessage);
         if (author === 'workflow_agent'){
           window.parent.postMessage(
-            { key: 'renderTextMessage', type: 'renderTextMessage', text: this.streamingTextMessage.text }, 
+            { key: 'workflowContent', type: 'workflowContent', text: this.streamingTextMessage.text }, 
             '*'
           );
         }
