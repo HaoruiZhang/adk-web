@@ -43,7 +43,7 @@ import {MatTabsModule} from '@angular/material/tabs';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {NgxJsonViewerModule} from 'ngx-json-viewer';
-import {MarkdownModule} from 'ngx-markdown';
+import {MarkdownModule, MarkdownModuleConfig, MARKED_OPTIONS, MarkedOptions } from 'ngx-markdown';
 
 import {ResizableBottomDirective} from '../directives/resizable-bottom.directive';
 import {ResizableDrawerDirective} from '../directives/resizable-drawer.directive';
@@ -122,7 +122,19 @@ const COMPONENTS = [
     MatProgressBarModule,
     BrowserAnimationsModule,
     MatProgressSpinnerModule,
-    MarkdownModule.forRoot(),
+    MarkdownModule.forRoot({
+      markedOptions: {
+        provide: MARKED_OPTIONS,
+        useValue: {
+          gfm: true,
+          breaks: false,
+          pedantic: false,
+          sanitize: false,
+          smartLists: true,
+          smartypants: true
+        } as MarkedOptions
+      }
+    }),
     MatSlideToggleModule,
     ReactiveFormsModule,
     MatChipsModule,

@@ -40,10 +40,22 @@
             ],
             "scripts": [
               "node_modules/prismjs/prism.js",  
+               "node_modules/prismjs/plugins/toolbar/prism-toolbar.min.js",
               "node_modules/prismjs/components/prism-properties.min.js", 
               "node_modules/prismjs/plugins/line-numbers/prism-line-numbers.js",
               "node_modules/prismjs/components/prism-typescript.min.js",
-              "node_modules/prismjs/components/prism-python.min.js"
+              "node_modules/prismjs/components/prism-python.min.js",
+              "node_modules/prismjs/components/prism-vim.min.js",
+              "node_modules/prismjs/components/prism-yaml.min.js",
+              "node_modules/prismjs/components/prism-rust.min.js",
+              "node_modules/prismjs/components/prism-perl.min.js",
+              "node_modules/prismjs/components/prism-json.min.js",
+              "node_modules/prismjs/components/prism-jsonp.min.js",
+              "node_modules/prismjs/components/prism-java.min.js",
+              "node_modules/prismjs/components/prism-javascript.min.js",
+              "node_modules/prismjs/components/prism-bash.min.js",
+              "node_modules/prismjs/components/prism-r.min.js",
+              "node_modules/prismjs/plugins/copy-to-clipboard/prism-copy-to-clipboard.js" 
             ]
           },
           "configurations": {
