@@ -55,7 +55,8 @@
               "node_modules/prismjs/components/prism-javascript.min.js",
               "node_modules/prismjs/components/prism-bash.min.js",
               "node_modules/prismjs/components/prism-r.min.js",
-              "node_modules/prismjs/plugins/copy-to-clipboard/prism-copy-to-clipboard.js" 
+              "src/utils/prism-copy-to-clipboard.js",
+              "src/utils/prism-runtask.js"
             ]
           },
           "configurations": {

@@ -20,7 +20,7 @@
       <div (click)="getSession(session.id)" [ngClass]="session.id === sessionId ? 'session-item current': 'session-item'">
         <div class="session-info">
           <div class="session-id">
-            {{session.title || session.events[0]?.content?.parts[0]?.text || session.state?.last_response || session.id}}
+            {{session.state?.title || session.events[0]?.content?.parts[0]?.text || session.state?.last_response || session.id}}
           </div>
           <div class="session-date">
             {{ getDate(session) }}
