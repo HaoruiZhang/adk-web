@@ -1122,11 +1122,24 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected updateWithSelectedSession(session: Session) {
+    console.log('Selected session:', session);
     if (!session || !session.id || !session.events || !session.state) {
       return;
     }
+    console.log('Updating with selected session:', this.messages);
+    if(!this.messages.length){
+      console.log('Deleting session as no messages found');
+      try{
+        this.sessionService.deleteSession(this.userId, this.appName, this.sessionId).subscribe();
+        this.sessionTab.refreshSession();
+      }catch (e) {
+        console.error('Error deleting session:', e);
+      }
+      
+    }
     this.traceService.resetTraceService();
     this.sessionId = session.id;
+    window.sessionStorage.setItem('sessionId', this.sessionId);
     this.currentSessionState = session.state;
     this.evalCase = null;
     this.isChatMode.set(true);

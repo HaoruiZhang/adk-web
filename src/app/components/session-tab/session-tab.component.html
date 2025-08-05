@@ -17,16 +17,18 @@
 <div class="session-wrapper">
   <div class="session-tab-container" style="margin-top: 16px;">
     @for (session of sessionList; track session) {
-      <div (click)="getSession(session.id)" [ngClass]="session.id === sessionId ? 'session-item current': 'session-item'">
-        <div class="session-info">
-          <div class="session-id">
-            {{session.state?.title || session.events[0]?.content?.parts[0]?.text || session.state?.last_response || session.id}}
-          </div>
-          <div class="session-date">
-            {{ getDate(session) }}
-          </div>
+    <div (click)="getSession(session.id)" [ngClass]="session.id === sessionId ? 'session-item current': 'session-item'">
+      <div class="session-info">
+        <div class="session-id">
+          {{session.state?.title || session.state?.last_rag_result || session.state?.last_plan_result ||
+          session.state?.last_response ||'新会话'|| session.events[0]?.content?.parts[0]?.text ||
+          session.state?.last_response || session.id}}
+        </div>
+        <div class="session-date">
+          {{ getDate(session) }}
         </div>
       </div>
+    </div>
     }
   </div>
 </div>

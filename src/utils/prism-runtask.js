@@ -34,11 +34,10 @@
 
 	/** @param {TaskInfo} taskInfo */
 	function runTask(taskInfo) {
-		console.log('Running task with text:', taskInfo.getText());
 		// Simulate a task execution
 		try {
 			window.parent.postMessage(
-				{ key: 'workflowContent', type: 'workflowContent', text: taskInfo.getText() },
+				{ key: 'workflowContent', type: 'workflowContent', text: taskInfo.getText(), session: window.sessionStorage.getItem('sessionId') },
 				'*'
 			);
 			taskInfo.success();
@@ -98,7 +97,7 @@
 	// });
 
 	Prism.plugins.toolbar.registerButton('run-task', function (env) {
-		console.log('Run task button created for:', env);
+		if(!['python', 'bash', 'r'].includes(env.language)) return;
 		var element = env.element;
 
 		var settings = getSettings(element);
@@ -113,7 +112,10 @@
 
 		registerRunTask(linkRun, {
 			getText: function () {
-				return element.textContent;
+				return `\`\`\`${env.language}\n${element.textContent}\n\`\`\``;
+			},
+			getLanguage: function () {
+				return env.language;
 			},
 			success: function () {
 				setState('run-success');

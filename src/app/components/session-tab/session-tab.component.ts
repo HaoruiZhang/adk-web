@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
-import {MatDialog} from '@angular/material/dialog';
-import {Subject, switchMap} from 'rxjs';
-import {Session} from '../../core/models/Session';
-import {SessionService} from '../../core/services/session.service';
+import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { MatDialog } from "@angular/material/dialog";
+import { Subject, switchMap } from "rxjs";
+import { Session } from "../../core/models/Session";
+import { SessionService } from "../../core/services/session.service";
 
 @Component({
-  selector: 'app-session-tab',
-  templateUrl: './session-tab.component.html',
-  styleUrl: './session-tab.component.scss',
+  selector: "app-session-tab",
+  templateUrl: "./session-tab.component.html",
+  styleUrl: "./session-tab.component.scss",
   standalone: false,
 })
 export class SessionTabComponent implements OnInit {
-  @Input() userId: string = '';
-  @Input() appName: string = '';
-  @Input() sessionId: string = '';
+  @Input() userId: string = "";
+  @Input() appName: string = "";
+  @Input() sessionId: string = "";
 
   @Output() readonly sessionSelected = new EventEmitter<Session>();
   @Output() readonly sessionReloaded = new EventEmitter<Session>();
@@ -41,23 +41,37 @@ export class SessionTabComponent implements OnInit {
 
   constructor(
     private sessionService: SessionService,
-    private dialog: MatDialog,
+    private dialog: MatDialog
   ) {
     this.refreshSessionsSubject
-        .pipe(
-            switchMap(
-                () =>
-                    this.sessionService.listSessions(this.userId, this.appName),
-                ),
-            )
-        .subscribe((res) => {
-          res = res.sort(
-              (a: any, b: any) =>
-                  Number(b.lastUpdateTime) - Number(a.lastUpdateTime),
-          );
-          this.sessionList = res;
-          console.log('Session list updated:', this.sessionList);
-        });
+      .pipe(
+        switchMap(() =>
+          this.sessionService.listSessions(this.userId, this.appName)
+        )
+      )
+      .subscribe((res) => {
+        res = res.sort(
+          (a: any, b: any) =>
+            Number(b.lastUpdateTime) - Number(a.lastUpdateTime)
+        );
+        // const notEmptySessions: any[] = [];
+        // res.forEach((session: any) => {
+        //   this.sessionService
+        //     .getSession(session.userId, session.appName, session.id)
+        //     .subscribe((subRes: any) => {
+        //       const sessionInfo = this.fromApiResultToSession(subRes);
+        //       if (
+        //         sessionInfo.id === this.sessionId ||
+        //         (sessionInfo.events && sessionInfo.events.length > 0)
+        //       ) {
+        //         notEmptySessions.push(session);
+        //       }
+        //     });
+        // });
+
+        this.sessionList = res;
+        console.log("Session list updated:", this.sessionList);
+      });
   }
 
   ngOnInit(): void {
@@ -67,6 +81,7 @@ export class SessionTabComponent implements OnInit {
   }
 
   getSession(sessionId: string) {
+    console.log("Selected session ID:", this);
     this.sessionService
       .getSession(this.userId, this.appName, sessionId)
       .subscribe((res) => {
@@ -85,9 +100,9 @@ export class SessionTabComponent implements OnInit {
 
   private fromApiResultToSession(res: any): Session {
     return {
-      id: res?.id ?? '',
-      appName: res?.appName ?? '',
-      userId: res?.userId ?? '',
+      id: res?.id ?? "",
+      appName: res?.appName ?? "",
+      userId: res?.userId ?? "",
       state: res?.state ?? [],
       events: res?.events ?? [],
     };
