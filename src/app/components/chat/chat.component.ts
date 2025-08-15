@@ -26,7 +26,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {ActivatedRoute, NavigationEnd, Router} from '@angular/router';
 import {instance} from '@viz-js/viz';
-import {BehaviorSubject, catchError, combineLatest, distinctUntilChanged, filter, map, Observable, of, shareReplay, switchMap, take, tap} from 'rxjs';
+import {BehaviorSubject, catchError, combineLatest, distinctUntilChanged, filter, map, Observable, of, shareReplay, switchMap, take, tap, timestamp} from 'rxjs';
 import stc from 'string-to-color';
 
 import {URLUtil} from '../../../utils/url-util';
@@ -532,6 +532,33 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
               { key: 'workflowContent', type: 'workflowContent', text: this.streamingTextMessage.text }, 
               '*'
             );
+            const resultListener = (event: MessageEvent) => {
+              if( event.data && event.data.key === 'workflowResult') {
+                console.log('Workflow result received:', event.data.result);
+                const eventData = {
+                  content: {
+                    parts:[
+                      {
+                        text: event.data.stdout,
+                        thought: false,
+                        inlineData: null,
+                        functionCall: null,
+                        functionResponse: null,
+                        executableCode: null,
+                        codeExecutionResult: null,
+                      }
+                    ]
+                  },
+                  author: 'workflow_agent',
+                  timestamp: Date.now(),
+                  title: `Workflow Result`,
+                  id: `${chunkJson.id}-workflow-result`
+                };
+              };
+              window.removeEventListener('message', resultListener);
+            };
+
+            window.addEventListener('message', resultListener);
           }
           this.streamingTextMessage = null;
           return;
@@ -555,6 +582,34 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             { key: 'workflowContent', type: 'workflowContent', text: this.streamingTextMessage.text }, 
             '*'
           );
+          const resultListener = (event: MessageEvent) => {
+            if( event.data && event.data.key === 'workflowResult') {
+              console.log('Workflow result received:', event.data.result);
+              const eventData = {
+                content: {
+                  parts:[
+                    {
+                      text: event.data.stdout,
+                      thought: false,
+                      inlineData: null,
+                      functionCall: null,
+                      functionResponse: null,
+                      executableCode: null,
+                      codeExecutionResult: null,
+                    }
+                  ]
+                },
+                author: 'workflow_agent',
+                timestamp: Date.now(),
+                title: `Workflow Result`,
+                id: `${chunkJson.id}-workflow-result`
+              };
+            };
+            window.removeEventListener('message', resultListener);
+             
+          };
+
+          window.addEventListener('message', resultListener);
         }
       }
     } else if (!part.thought) {
@@ -702,6 +757,18 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (part.functionResponse) {
       message.functionResponse = part.functionResponse;
       message.eventId = e?.id;
+      if( part.functionResponse.name && part.functionResponse.name ==='extract_user_specified_mime_type_path'){
+        window.parent.postMessage(
+          { key: 'specifiedMimePath', type: 'specifiedMimePath', path: part.functionResponse.response.mime_type_path }, 
+          '*'
+        );
+      }                                                                
+      if( part.functionResponse.name && part.functionResponse.name ==='extract_user_specified_script_path'){
+        window.parent.postMessage(
+          { key: 'specifiedScriptPath', type: 'specifiedScriptPath', path: part.functionResponse.response.script_path }, 
+          '*'
+        );
+      }
       this.eventMessageIndexArray[index] = part.functionResponse;
     } else if (part.executableCode) {
       message.executableCode = part.executableCode;
