@@ -118,6 +118,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   messages: any[] = [];
   lastTextChunk: string = '';
   streamingTextMessage: any | null = null;
+  isNewMessageFromUser = false;
+  userSpecifiedPath = '';
   latestThought: string = '';
   artifacts: any[] = [];
   userInput: string = '';
@@ -134,7 +136,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   functionCallEventId = '';
   redirectUri = URLUtil.getBaseUrlWithoutPath();
   showSidePanel = true;
-  useSse = false;
+  useSse = true;
   currentSessionState = {};
   root_agent = ROOT_AGENT;
   updatedSessionState = signal(null);
@@ -412,6 +414,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!!this.userInput.trim()) {
       this.messages.push({role: 'user', text: this.userInput});
       this.messagesSubject.next(this.messages);
+      this.isNewMessageFromUser = true;
     }
 
     // Add user message attachments
@@ -757,15 +760,17 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (part.functionResponse) {
       message.functionResponse = part.functionResponse;
       message.eventId = e?.id;
-      if( part.functionResponse.name && part.functionResponse.name ==='extract_user_specified_mime_type_path'){
+      if( part.functionResponse.name && part.functionResponse.name ==='extract_user_specified_mime_type_path' && this.isNewMessageFromUser){
         window.parent.postMessage(
           { key: 'specifiedMimePath', type: 'specifiedMimePath', path: part.functionResponse.response.mime_type_path }, 
           '*'
         );
+        this.isNewMessageFromUser = false;
       }                                                                
       if( part.functionResponse.name && part.functionResponse.name ==='extract_user_specified_script_path'){
+        this.userSpecifiedPath = part.functionResponse.response.script_path;
         window.parent.postMessage(
-          { key: 'specifiedScriptPath', type: 'specifiedScriptPath', path: part.functionResponse.response.script_path }, 
+          { key: 'specifiedScriptPath', type: 'specifiedScriptPath', path: this.userSpecifiedPath }, 
           '*'
         );
       }
@@ -1186,6 +1191,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     this.messages = [];
     this.messagesSubject.next(this.messages);
     this.artifacts = [];
+    this.userSpecifiedPath = '';
+    this.isNewMessageFromUser = false;
   }
 
   protected updateWithSelectedSession(session: Session) {
