@@ -115,6 +115,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   isEvalEditMode = signal(false);
   videoElement!: HTMLVideoElement;
   currentMessage = '';
+  updateSessionInterval: any;
   messages: any[] = [];
   lastTextChunk: string = '';
   streamingTextMessage: any | null = null;
@@ -245,6 +246,17 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       @Inject(DOCUMENT) private document: Document,
   ) {}
 
+  private runTaskListener = (event: MessageEvent) => {    
+    if( event.data && event.data.key === 'runTask') {
+      console.log('监听: 运行任务');
+      if (this.updateSessionInterval) {
+        clearInterval(this.updateSessionInterval);
+      }
+      this.updateSessionInterval = setInterval(()=>{
+        this.updateCurrentSession()
+      }, 3000);
+    };
+  };
   ngOnInit(): void {
     this.syncSelectedAppFromUrl();
     this.updateSelectedAppUrl();
@@ -271,6 +283,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     this.agentService.getApp().subscribe((app) => {
       this.appName = app;
     });
+    console.log(this.appName)
 
     combineLatest([
       this.agentService.getLoadingState(), this.isModelThinkingSubject
@@ -316,6 +329,15 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             this.scrollToBottom();
       }, 200);
     }
+
+    // Todo: 会加载两次，导致监听了两次, fix: 
+    if(!window.sessionStorage.getItem('initNum') || window.sessionStorage.getItem('initNum') == '1'){
+       window.sessionStorage.setItem('initNum', '2');
+       return
+    } else if(window.sessionStorage.getItem('initNum') == '2'){
+      window.addEventListener('message', this.runTaskListener);
+      window.sessionStorage.setItem('initNum', '1');
+    } 
   }
 
   ngAfterViewInit() {
@@ -408,6 +430,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       if (event.isComposing || event.keyCode === 229) {
         return;
       }
+    }
+
+    if (this.updateSessionInterval) {
+      clearInterval(this.updateSessionInterval);
+      this.updateSessionInterval = null;
     }
 
     // Add user message
@@ -671,7 +698,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private storeMessage(
-      part: any, e: any, index: number, role: string, invocationIndex?: number,
+      part: any, e: any, index: number, role: string, needRefresh = true, invocationIndex?: number,
       additionalIndeces?: any) {
     if (e?.author) {
       this.createAgentIconColorClass(e.author);
@@ -790,7 +817,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
-    if (Object.keys(part).length > 0) {
+    if (needRefresh && Object.keys(part).length > 0) {
       this.insertMessageBeforeLoadingMessage(message);
     }
   }
@@ -1039,6 +1066,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   // 监听浏览器关闭或刷新
   @HostListener('window:beforeunload', ['$event'])
   handleBeforeUnload(event: Event) {
+    console.log('handleBeforeUnload')
+    window.removeEventListener('message', this.runTaskListener);
+    if (this.updateSessionInterval) {
+      clearInterval(this.updateSessionInterval);
+    }
     if (!this.messages.length) {
       this.sessionService.deleteSession(this.userId, this.appName, this.sessionId).subscribe();
     }
@@ -1185,22 +1217,75 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private resetEventsAndMessages() {
+  private resetEventsAndMessages(needRefresh = true) {
     this.eventData.clear();
     this.eventMessageIndexArray = [];
     this.messages = [];
-    this.messagesSubject.next(this.messages);
+    needRefresh && this.messagesSubject.next(this.messages);
     this.artifacts = [];
     this.userSpecifiedPath = '';
     this.isNewMessageFromUser = false;
   }
+
+  private updateCurrentSession(){
+    console.log('执行: 更新session');
+    this.sessionService.getSession(this.userId, this.appName, this.sessionId)
+      .subscribe((session) => {
+        if (!session || !session.id || !session.events || !session.state) {
+          console.warn('No session', session);
+          return;
+        } 
+        
+        // 对比event和message，如果有 插入到指定位置;
+        if(session.events && session.events.length > this.messages.length){
+          console.log('捕获: events发生了变化');
+          this.traceService.resetTraceService();
+          let index = 0;
+          const currentMessageLength = this.messages.length;
+          session.events.forEach((event: any) => {
+            event.content?.parts?.forEach((part: any) => {
+              if(index < currentMessageLength) {
+                index += 1;
+                return;
+              }
+              console.log('追加: ', event.content.parts, '\npart: ', part, '\nevent: ', event);
+              this.storeMessage(
+                part, event, index, event.author === 'user' ? 'user' : 'bot'
+              );
+              index += 1;
+              if (event.author && event.author !== 'user') {
+                this.storeEvents(part, event, index);
+              }
+            });
+          });
+
+          
+          this.eventService.getTrace(this.sessionId).subscribe(res => {
+            this.traceData = res;
+            this.traceService.setEventData(this.eventData);
+            this.traceService.setMessages(this.messages);
+          });
+          this.messagesSubject.next(this.messages);
+          setTimeout(() => {
+            this.scrollToBottom();
+          }, 2000);
+           
+        }
+        
+      });
+  }
+  
 
   protected updateWithSelectedSession(session: Session) {
     console.log('Selected session:', session);
     if (!session || !session.id || !session.events || !session.state) {
       return;
     }
-    console.log('Updating with selected session:', this.messages);
+    if (this.updateSessionInterval) {
+      console.log('切换session，删除监听')
+      clearInterval(this.updateSessionInterval);
+      this.updateSessionInterval = null;
+    }
     if(!this.messages.length){
       console.log('Deleting session as no messages found');
       try{
@@ -1209,7 +1294,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       }catch (e) {
         console.error('Error deleting session:', e);
       }
-      
     }
     this.traceService.resetTraceService();
     this.sessionId = session.id;
@@ -1270,7 +1354,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             functionCall: {name: toolUse.name, args: toolUse.args}
           };
           this.storeMessage(
-              functionCallPart, null, index, 'bot', invocationIndex,
+              functionCallPart, null, index, 'bot',true, invocationIndex,
               {toolUseIndex});
           index++;
           toolUseIndex++;
@@ -1285,7 +1369,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         let finalResponsePartIndex = 0;
         for (const part of invocation.finalResponse.parts) {
           this.storeMessage(
-              part, null, index, 'bot', invocationIndex,
+              part, null, index, 'bot',true, invocationIndex,
               {finalResponsePartIndex});
           index++;
           finalResponsePartIndex++;

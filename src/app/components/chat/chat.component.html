@@ -323,6 +323,8 @@
         <div #autoScroll class="chat-messages">
           <div #videoContainer></div>
           @for (message of messages; track message; let i = $index) {
+            @if (message.text && message.text.startsWith("<backend-reply-start>")){
+              } @else {
             <div
               [ngClass]="{
                 'user-message': message.role === 'user',
@@ -633,6 +635,7 @@
                 </button>
               }
             </div>
+              }
           }
         </div>
       }

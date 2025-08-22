@@ -79,7 +79,7 @@ export class SessionTabComponent implements OnInit {
       this.refreshSessionsSubject.next();
     }, 500);
   }
-
+ 
   getSession(sessionId: string) {
     console.log("Selected session ID:", this);
     this.sessionService

@@ -48,6 +48,7 @@
               "node_modules/prismjs/components/prism-vim.min.js",
               "node_modules/prismjs/components/prism-yaml.min.js",
               "node_modules/prismjs/components/prism-rust.min.js",
+              "node_modules/prismjs/components/prism-shell-session.min.js",
               "node_modules/prismjs/components/prism-perl.min.js",
               "node_modules/prismjs/components/prism-json.min.js",
               "node_modules/prismjs/components/prism-jsonp.min.js",
