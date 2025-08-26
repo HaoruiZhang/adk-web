@@ -562,33 +562,33 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
               { key: 'workflowContent', type: 'workflowContent', text: this.streamingTextMessage.text }, 
               '*'
             );
-            const resultListener = (event: MessageEvent) => {
-              if( event.data && event.data.key === 'workflowResult') {
-                console.log('Workflow result received:', event.data.result);
-                const eventData = {
-                  content: {
-                    parts:[
-                      {
-                        text: event.data.stdout,
-                        thought: false,
-                        inlineData: null,
-                        functionCall: null,
-                        functionResponse: null,
-                        executableCode: null,
-                        codeExecutionResult: null,
-                      }
-                    ]
-                  },
-                  author: 'workflow_agent',
-                  timestamp: Date.now(),
-                  title: `Workflow Result`,
-                  id: `${chunkJson.id}-workflow-result`
-                };
-              };
-              window.removeEventListener('message', resultListener);
-            };
+            // const resultListener = (event: MessageEvent) => {
+            //   if( event.data && event.data.key === 'workflowResult') {
+            //     console.log('Workflow result received:', event.data.result);
+            //     const eventData = {
+            //       content: {
+            //         parts:[
+            //           {
+            //             text: event.data.stdout,
+            //             thought: false,
+            //             inlineData: null,
+            //             functionCall: null,
+            //             functionResponse: null,
+            //             executableCode: null,
+            //             codeExecutionResult: null,
+            //           }
+            //         ]
+            //       },
+            //       author: 'workflow_agent',
+            //       timestamp: Date.now(),
+            //       title: `Workflow Result`,
+            //       id: `${chunkJson.id}-workflow-result`
+            //     };
+            //   };
+            //   window.removeEventListener('message', resultListener);
+            // };
 
-            window.addEventListener('message', resultListener);
+            // window.addEventListener('message', resultListener);
           }
           this.streamingTextMessage = null;
           return;
@@ -612,34 +612,34 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             { key: 'workflowContent', type: 'workflowContent', text: this.streamingTextMessage.text }, 
             '*'
           );
-          const resultListener = (event: MessageEvent) => {
-            if( event.data && event.data.key === 'workflowResult') {
-              console.log('Workflow result received:', event.data.result);
-              const eventData = {
-                content: {
-                  parts:[
-                    {
-                      text: event.data.stdout,
-                      thought: false,
-                      inlineData: null,
-                      functionCall: null,
-                      functionResponse: null,
-                      executableCode: null,
-                      codeExecutionResult: null,
-                    }
-                  ]
-                },
-                author: 'workflow_agent',
-                timestamp: Date.now(),
-                title: `Workflow Result`,
-                id: `${chunkJson.id}-workflow-result`
-              };
-            };
-            window.removeEventListener('message', resultListener);
+          // const resultListener = (event: MessageEvent) => {
+          //   if( event.data && event.data.key === 'workflowResult') {
+          //     console.log('Workflow result received:', event.data.result);
+          //     const eventData = {
+          //       content: {
+          //         parts:[
+          //           {
+          //             text: event.data.stdout,
+          //             thought: false,
+          //             inlineData: null,
+          //             functionCall: null,
+          //             functionResponse: null,
+          //             executableCode: null,
+          //             codeExecutionResult: null,
+          //           }
+          //         ]
+          //       },
+          //       author: 'workflow_agent',
+          //       timestamp: Date.now(),
+          //       title: `Workflow Result`,
+          //       id: `${chunkJson.id}-workflow-result`
+          //     };
+          //   };
+          //   window.removeEventListener('message', resultListener);
              
-          };
+          // };
 
-          window.addEventListener('message', resultListener);
+          // window.addEventListener('message', resultListener);
         }
       }
     } else if (!part.thought) {

@@ -40,7 +40,23 @@
 				{ key: 'workflowContent', type: 'workflowContent', text: taskInfo.getText(), session: window.sessionStorage.getItem('sessionId') },
 				'*'
 			);
-			taskInfo.success();
+			taskInfo.running();
+			function handleMessage(event) {
+				if (event.data.key === 'task-state') {
+					const { state } = event.data;
+					if (state === 'success') {
+						taskInfo.success();
+					} else if (state === 'error') {
+						taskInfo.error('Task execution failed');
+					}
+					window.removeEventListener('message', handleMessage);
+				}
+			}
+			window.addEventListener('message', handleMessage);
+
+
+
+			// taskInfo.success();
 		} catch (error) {
 			console.error('Task execution failed:', error);
 			taskInfo.error(error);
@@ -69,7 +85,8 @@
 		var settings = {
 			'run': 'Run',
 			'run-error': 'Run task failed',
-			'run-success': 'Task submitted',
+			'running': 'Running...',
+			'run-success': 'Success!',
 			'run-timeout': 5000
 		};
 
@@ -97,7 +114,7 @@
 	// });
 
 	Prism.plugins.toolbar.registerButton('run-task', function (env) {
-		if(!['python', 'bash', 'r'].includes(env.language)) return;
+		if (!['python', 'bash', 'r'].includes(env.language)) return;
 		var element = env.element;
 
 		var settings = getSettings(element);
@@ -119,8 +136,10 @@
 			},
 			success: function () {
 				setState('run-success');
-
 				resetText();
+			},
+			running: function () {
+				setState('running');
 			},
 			error: function () {
 				setState('run-error');
@@ -128,7 +147,6 @@
 				setTimeout(function () {
 					selectElementText(element);
 				}, 1);
-
 				resetText();
 			}
 		});
