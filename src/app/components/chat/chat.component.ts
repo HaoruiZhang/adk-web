@@ -137,6 +137,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   functionCallEventId = '';
   redirectUri = URLUtil.getBaseUrlWithoutPath();
   showSidePanel = true;
+  isFinalResponse = true;
   useSse = true;
   currentSessionState = {};
   root_agent = ROOT_AGENT;
@@ -252,6 +253,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.updateSessionInterval) {
         clearInterval(this.updateSessionInterval);
       }
+    
       this.updateSessionInterval = setInterval(()=>{
         this.updateCurrentSession()
       }, 3000);
@@ -506,7 +508,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
               this.changeDetectorRef.detectChanges();
             });
         this.traceService.setMessages(this.messages);
-      },
+        window.parent.postMessage(
+          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*');
+        },
     });
     // Clear input
     this.userInput = '';
@@ -817,10 +821,29 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
+    // this.checkFinalResponse(part, e? e : null)
+
     if (needRefresh && Object.keys(part).length > 0) {
       this.insertMessageBeforeLoadingMessage(message);
     }
   }
+
+  // private checkFinalResponse(part: any, e?: any ){
+  //    // 判断是否对话结束
+  //   if (e?.actions.skip_summarization || e?.longRunningToolIds?.length){
+  //     this.isFinalResponse = true;
+  //   } else if (!part.functionResponse && !part.functionCall  && !e?.partial ) {
+  //     this.isFinalResponse = true;
+  //   } else {
+  //     this.isFinalResponse = false;
+  //   }
+  //   console.log('【判断对话是否结束】', this.isFinalResponse, part.text)
+
+  //   if (this.isFinalResponse) {
+  //     window.parent.postMessage(
+  //     { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*');
+  //   }
+  // }
 
   private insertMessageBeforeLoadingMessage(message: any) {
     const lastMessage = this.messages[this.messages.length - 1];
