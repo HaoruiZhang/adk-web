@@ -248,7 +248,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   private runTaskListener = (event: MessageEvent) => {    
-    if( event.data && event.data.key === 'runTask') {
+    if( event.data && event.data.key === 'startRunTask') {
       console.log('监听: 运行任务');
       if (this.updateSessionInterval) {
         clearInterval(this.updateSessionInterval);
@@ -302,6 +302,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         this.messagesSubject.next(this.messages);
         this.changeDetectorRef.detectChanges();
       }
+
     });
 
     combineLatest([
