@@ -250,13 +250,22 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   private runTaskListener = (event: MessageEvent) => {    
     if( event.data && event.data.key === 'startRunTask') {
       console.log('监听: 运行任务');
+      this.scrollToBottom();
+      this.handleLoading(true);
       if (this.updateSessionInterval) {
         clearInterval(this.updateSessionInterval);
+        this.updateSessionInterval = null;
       }
     
       this.updateSessionInterval = setInterval(()=>{
         this.updateCurrentSession()
-      }, 3000);
+      }, 8000);
+
+      
+
+
+
+
     };
   };
   ngOnInit(): void {
@@ -354,7 +363,21 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         top: this.scrollContainer.nativeElement.scrollHeight,
         behavior: 'smooth',
       });
-    });
+    }, 1000);
+  }
+
+  handleLoading(isLoading: boolean) {
+    const lastMessage = this.messages[this.messages.length - 1];
+    if (isLoading) {
+      if (!lastMessage?.isLoading && !this.streamingTextMessage) {
+        this.messages.push({ role: 'bot', isLoading: true });
+        this.messagesSubject.next(this.messages);
+      }
+    } else if (lastMessage?.isLoading && !this.isModelThinkingSubject.value) {
+      this.messages.pop();
+      this.messagesSubject.next(this.messages);
+      this.changeDetectorRef.detectChanges();
+    }
   }
 
   selectApp(appName: string) {
@@ -822,29 +845,50 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
-    // this.checkFinalResponse(part, e? e : null)
+    this.checkFinalResponse(part, e? e : null)
 
     if (needRefresh && Object.keys(part).length > 0) {
       this.insertMessageBeforeLoadingMessage(message);
     }
   }
 
-  // private checkFinalResponse(part: any, e?: any ){
-  //    // 判断是否对话结束
-  //   if (e?.actions.skip_summarization || e?.longRunningToolIds?.length){
-  //     this.isFinalResponse = true;
-  //   } else if (!part.functionResponse && !part.functionCall  && !e?.partial ) {
-  //     this.isFinalResponse = true;
-  //   } else {
-  //     this.isFinalResponse = false;
-  //   }
-  //   console.log('【判断对话是否结束】', this.isFinalResponse, part.text)
+  private checkFinalResponse(part: any, e?: any ){
+     // 判断是否对话结束
+    if (e?.actions.skip_summarization || e?.longRunningToolIds?.length){
+      this.isFinalResponse = true;
+    } else if (!part.functionResponse && !part.functionCall  && !e?.partial && !part.text.includes('<backend-reply-start>')) {
+      this.isFinalResponse = true;
+    } else {
+      this.isFinalResponse = false;
+    }
 
-  //   if (this.isFinalResponse) {
-  //     window.parent.postMessage(
-  //     { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*');
-  //   }
-  // }
+    if (this.isFinalResponse && this.updateSessionInterval) {
+      console.log('【对话结束】', this.isFinalResponse, part.text)
+
+      // if (this.updateSessionInterval) {
+        clearInterval(this.updateSessionInterval);
+        this.updateSessionInterval = null;
+      // }
+      this.handleLoading(false);
+      this.traceService.resetTraceService();
+      this.isModelThinkingSubject.next(false);
+      this.sessionTab.reloadSession(this.sessionId);
+      this.eventService.getTrace(this.sessionId)
+          .pipe(catchError((error) => {
+            if (error.status === 404) {
+              return of(null);
+            }
+            return of([]);
+          }))
+          .subscribe(res => {
+            this.traceData = res;
+            this.changeDetectorRef.detectChanges();
+          });
+      this.traceService.setMessages(this.messages);
+      window.parent.postMessage(
+      { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*');
+    }
+  }
 
   private insertMessageBeforeLoadingMessage(message: any) {
     const lastMessage = this.messages[this.messages.length - 1];
@@ -1094,6 +1138,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     window.removeEventListener('message', this.runTaskListener);
     if (this.updateSessionInterval) {
       clearInterval(this.updateSessionInterval);
+      this.updateSessionInterval = null;
     }
     if (!this.messages.length) {
       this.sessionService.deleteSession(this.userId, this.appName, this.sessionId).subscribe();
@@ -1253,26 +1298,27 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private updateCurrentSession(){
     console.log('执行: 更新session');
+    const currentMessageLength = this.messages.length;
     this.sessionService.getSession(this.userId, this.appName, this.sessionId)
       .subscribe((session) => {
         if (!session || !session.id || !session.events || !session.state) {
           console.warn('No session', session);
           return;
         } 
-        
         // 对比event和message，如果有 插入到指定位置;
+        const currentMessageLength2 = this.messages.length;
+
         if(session.events && session.events.length > this.messages.length){
-          console.log('捕获: events发生了变化');
+          console.log('【捕获】 events发生了变化, 当前消息条数：', currentMessageLength, currentMessageLength2);
           this.traceService.resetTraceService();
           let index = 0;
-          const currentMessageLength = this.messages.length;
           session.events.forEach((event: any) => {
             event.content?.parts?.forEach((part: any) => {
               if(index < currentMessageLength) {
                 index += 1;
                 return;
               }
-              console.log('追加: ', event.content.parts, '\npart: ', part, '\nevent: ', event);
+              console.log('【追加】 event: ', event, '当前index:', index, '当前消息条数：', currentMessageLength);
               this.storeMessage(
                 part, event, index, event.author === 'user' ? 'user' : 'bot'
               );
@@ -1292,7 +1338,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           this.messagesSubject.next(this.messages);
           setTimeout(() => {
             this.scrollToBottom();
-          }, 2000);
+          }, 1000);
            
         }
         

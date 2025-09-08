@@ -16,7 +16,7 @@
 
 <div class="session-wrapper">
   <div class="session-tab-container" style="margin-top: 16px;">
-    @for (session of sessionList; track session) {
+    @for (session of sessionList; track session.id) {
     <div (click)="getSession(session.id)" [ngClass]="session.id === sessionId ? 'session-item current': 'session-item'">
       <div class="session-info">
         <div class="session-id">
