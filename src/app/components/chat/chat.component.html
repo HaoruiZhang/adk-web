@@ -701,21 +701,23 @@
                 >
                   <mat-icon>attach_file</mat-icon>
                 </button>
-                <button
+                
+                <!--<button
                   mat-icon-button
                   [matMenuTriggerFor]="moreMenu"
                   class="function-event-button"
                   matTooltip="More options"
                 >
                   <mat-icon>more_vert</mat-icon>
-                </button>
+                </button>-->
                 <mat-menu #moreMenu="matMenu">
                   <span mat-menu-item (click)="updateState()">
                     Update state
                   </span>
                 </mat-menu>
               </div>
-              <div>
+
+              <!--<div >
                 <button
                   mat-icon-button
                   matSuffix
@@ -738,7 +740,7 @@
                 >
                   <mat-icon>videocam</mat-icon>
                 </button>
-              </div>
+              </div> -->
             </div>
           </mat-form-field>
         </div>

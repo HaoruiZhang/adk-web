@@ -261,12 +261,14 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         this.updateCurrentSession()
       }, 8000);
 
-      
-
-
-
-
-    };
+    } else if (event.data && event.data.key === 'task-state' && event.data.state === 'error'){
+      console.log('iframe监听: 任务失败');
+      if (this.updateSessionInterval) {
+        clearInterval(this.updateSessionInterval);
+        this.updateSessionInterval = null;
+      }
+      this.handleLoading(false);
+    }
   };
   ngOnInit(): void {
     this.syncSelectedAppFromUrl();
@@ -367,6 +369,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   handleLoading(isLoading: boolean) {
+    console.log('修改loading状态:', isLoading);
     const lastMessage = this.messages[this.messages.length - 1];
     if (isLoading) {
       if (!lastMessage?.isLoading && !this.streamingTextMessage) {
@@ -519,6 +522,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err) => console.error('SSE error:', err),
       complete: () => {
         this.streamingTextMessage = null;
+        window.parent.postMessage(
+          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*'
+        );
         this.sessionTab.reloadSession(this.sessionId);
         this.eventService.getTrace(this.sessionId)
             .pipe(catchError((error) => {
@@ -532,9 +538,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
               this.changeDetectorRef.detectChanges();
             });
         this.traceService.setMessages(this.messages);
-        window.parent.postMessage(
-          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*');
-        },
+        
+      },
     });
     // Clear input
     this.userInput = '';
@@ -865,14 +870,14 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isFinalResponse && this.updateSessionInterval) {
       console.log('【对话结束】', this.isFinalResponse, part.text)
 
-      // if (this.updateSessionInterval) {
+      if (this.updateSessionInterval) {
         clearInterval(this.updateSessionInterval);
         this.updateSessionInterval = null;
-      // }
+      }
       this.handleLoading(false);
       this.traceService.resetTraceService();
       this.isModelThinkingSubject.next(false);
-      this.sessionTab.reloadSession(this.sessionId);
+      this.sessionTab?.reloadSession && this.sessionTab?.reloadSession(this.sessionId);
       this.eventService.getTrace(this.sessionId)
           .pipe(catchError((error) => {
             if (error.status === 404) {
@@ -886,7 +891,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           });
       this.traceService.setMessages(this.messages);
       window.parent.postMessage(
-      { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*');
+        { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*'
+      );
     }
   }
 
