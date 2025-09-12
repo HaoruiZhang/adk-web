@@ -861,7 +861,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
      // 判断是否对话结束
     if (e?.actions.skip_summarization || e?.longRunningToolIds?.length){
       this.isFinalResponse = true;
-    } else if (!part.functionResponse && !part.functionCall  && !e?.partial && !part.text.includes('<backend-reply-start>')) {
+    } else if (!part.functionResponse && !part.functionCall  && !e?.partial && !part.text?.includes('<backend-reply-start>')) {
       this.isFinalResponse = true;
     } else {
       this.isFinalResponse = false;
@@ -1133,6 +1133,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if(!this.messages.length){
+      console.log('删除空会话:', this.sessionId, this.messages)
       this.sessionService.deleteSession(this.userId, this.appName, this.sessionId);
     }
     this.webSocketService.closeConnection();
