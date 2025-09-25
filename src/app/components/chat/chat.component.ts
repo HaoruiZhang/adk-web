@@ -121,6 +121,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   streamingTextMessage: any | null = null;
   isNewMessageFromUser = false;
   userSpecifiedPath = '';
+  userFormConfig: any = null;
   latestThought: string = '';
   artifacts: any[] = [];
   userInput: string = '';
@@ -804,6 +805,18 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       };
       this.eventMessageIndexArray[index] = part.inlineData;
     } else if (part.text) {
+      const userFormConfig = this.extractFormConfig(part.text);
+      if( part.text && userFormConfig){
+        this.userFormConfig = userFormConfig;
+        window.parent.postMessage(
+          { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
+          '*'
+        );
+      }
+
+
+
+
       message.text = part.text;
       message.thought = part.thought ? true : false;
       if (e?.groundingMetadata && e.groundingMetadata.searchEntryPoint &&
@@ -1074,6 +1087,22 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     return selectedEvent?.author ?? ROOT_AGENT;
   }
 
+  extractFormConfig(str: string) {
+    const startTag = "<FORM_CONFIG>";
+    const endTag = "</FORM_CONFIG>";
+    
+    const startIndex = str.indexOf(startTag);
+    if (startIndex === -1) return ""; // 未找到开始标记
+    
+    const contentStartIndex = startIndex + startTag.length;
+    const endIndex = str.indexOf(endTag, contentStartIndex);
+    
+    if (endIndex === -1) return ""; // 未找到结束标记
+    
+    return str.substring(contentStartIndex, endIndex);
+  }
+
+  
   customIconColorClass(i: number) {
     const agentName = this.getAgentNameFromEvent(i);
     return agentName !== ROOT_AGENT ?
