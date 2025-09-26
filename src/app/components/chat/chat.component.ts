@@ -296,8 +296,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.agentService.getApp().subscribe((app) => {
       this.appName = app;
+      window.sessionStorage.setItem('appName', app);
     });
-    console.log(this.appName)
+    console.log('更新appName: ', this.appName)
 
     combineLatest([
       this.agentService.getLoadingState(), this.isModelThinkingSubject
@@ -431,6 +432,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       .subscribe((res) => {
         this.currentSessionState = res.state;
         this.sessionId = res.id;
+        window.sessionStorage.setItem('sessionId', res.id);
         this.sessionTab.refreshSession();
 
         this.isSessionUrlEnabledObs.subscribe((enabled) => {
@@ -805,9 +807,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       };
       this.eventMessageIndexArray[index] = part.inlineData;
     } else if (part.text) {
-      const userFormConfig = this.extractFormConfig(part.text);
-      if( part.text && userFormConfig){
-        this.userFormConfig = userFormConfig;
+      message.text = part.text;
+      const [cleanedText, fields] = this.extractFormConfigs(part.text);
+      if(cleanedText && fields.length){
+        message.text = cleanedText;
+        this.userFormConfig = fields;
         window.parent.postMessage(
           { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
           '*'
@@ -817,7 +821,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
 
-      message.text = part.text;
+      
       message.thought = part.thought ? true : false;
       if (e?.groundingMetadata && e.groundingMetadata.searchEntryPoint &&
         e.groundingMetadata.searchEntryPoint.renderedContent) {
@@ -1102,6 +1106,43 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     return str.substring(contentStartIndex, endIndex);
   }
 
+  extractFormConfigs(str: string) {
+    const startTag = "<FORM_CONFIG>";
+    const endTag = "</FORM_CONFIG>";
+    const result = [];
+    
+    // 用于存储剩余字符串的部分
+    let remaining = "";
+    let lastIndex = 0;
+    
+    // 查找所有匹配的字段
+    let startIndex = str.indexOf(startTag);
+    while (startIndex !== -1) {
+      const contentStartIndex = startIndex + startTag.length;
+      const endIndex = str.indexOf(endTag, contentStartIndex);
+      
+      if (endIndex === -1) break; // 未找到结束标记
+      
+      // 提取被包裹的内容
+      const content = str.substring(contentStartIndex, endIndex);
+      result.push(content);
+      
+      // 收集本次匹配前的字符串
+      remaining += str.substring(lastIndex, startIndex);
+      
+      // 更新最后处理的索引位置
+      lastIndex = endIndex + endTag.length;
+      
+      // 查找下一个匹配
+      startIndex = str.indexOf(startTag, lastIndex);
+    }
+    
+    // 添加最后一部分字符串
+    remaining += str.substring(lastIndex);
+    
+    return [remaining, result];
+  } 
+
   
   customIconColorClass(i: number) {
     const agentName = this.getAgentNameFromEvent(i);
@@ -1334,8 +1375,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private updateCurrentSession(){
     console.log('执行: 更新session');
+
     const currentMessageLength = this.messages.length;
-    this.sessionService.getSession(this.userId, this.appName, this.sessionId)
+    this.sessionService.getSession(this.userId, this.appName || window.sessionStorage.getItem('appName')|| 'agent', this.sessionId || window.sessionStorage.getItem('sessionId')|| '')
       .subscribe((session) => {
         if (!session || !session.id || !session.events || !session.state) {
           console.warn('No session', session);
@@ -1403,7 +1445,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.traceService.resetTraceService();
     this.sessionId = session.id;
-    window.sessionStorage.setItem('sessionId', this.sessionId);
+    window.sessionStorage.setItem('sessionId', session.id);
     this.currentSessionState = session.state;
     this.evalCase = null;
     this.isChatMode.set(true);
