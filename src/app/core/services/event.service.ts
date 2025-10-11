@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-import {HttpClient} from '@angular/common/http';
-import {Injectable} from '@angular/core';
-import {URLUtil} from '../../../utils/url-util';
+import { HttpClient } from "@angular/common/http";
+import { Injectable } from "@angular/core";
+import { URLUtil } from "../../../utils/url-util";
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: "root",
 })
 export class EventService {
   apiServerDomain = URLUtil.getApiServerBaseUrl();
@@ -40,11 +40,37 @@ export class EventService {
     userId: string,
     appName: string,
     sessionId: string,
-    eventId: string,
+    eventId: string
   ) {
     const url =
       this.apiServerDomain +
       `/apps/${appName}/users/${userId}/sessions/${sessionId}/events/${eventId}/graph`;
-    return this.http.get<{dotSrc?: string}>(url);
+    return this.http.get<{ dotSrc?: string }>(url);
+  }
+
+  modifyEvent(
+    userId: string,
+    appName: string,
+    sessionId: string,
+    eventID: string,
+    form: any
+  ) {
+    const url =
+      (this.apiServerDomain || (window as any)['runtimeConfig']?.backendUrl) +
+      `/apps/${appName}/users/${userId}/sessions/${sessionId}/events/${eventID}`;
+    
+    console.log('【ADK】modifyEvent,', url, this.apiServerDomain, (window as any)['runtimeConfig']?.backendUrl)
+    return this.http.put<any>(url, {
+      modified_content: {
+        role: "model",
+        parts: [
+          {
+            text: form,
+          },
+        ],
+      },
+    });
+
+      
   }
 }

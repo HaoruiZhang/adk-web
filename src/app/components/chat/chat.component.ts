@@ -248,29 +248,44 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       @Inject(DOCUMENT) private document: Document,
   ) {}
 
-  private runTaskListener = (event: MessageEvent) => {    
-    if( event.data && event.data.key === 'startRunTask') {
-      console.log('监听: 运行任务');
-      this.scrollToBottom();
-      this.handleLoading(true);
-      if (this.updateSessionInterval) {
-        clearInterval(this.updateSessionInterval);
-        this.updateSessionInterval = null;
-      }
-    
-      this.updateSessionInterval = setInterval(()=>{
-        this.updateCurrentSession()
-      }, 8000);
+  private runTaskListener = (event: MessageEvent) => {
+    console.log('CHAT iframe监听事件: ', event.data.key, '\n', event.data);
+    if(!event.data) return;
+    switch(event.data.key){
+      case 'startRunTask':
+        console.log('监听: 运行任务');
+        this.scrollToBottom();
+        this.handleLoading(true);
+        if (this.updateSessionInterval) {
+          clearInterval(this.updateSessionInterval);
+          this.updateSessionInterval = null;
+        }
+      
+        this.updateSessionInterval = setInterval(()=>{
+          this.updateCurrentSession()
+        }, 8000);
+        break;
+      case 'task-state':
+        if (event.data.state === 'error'){
+          console.log('iframe监听: 任务失败');
+          if (this.updateSessionInterval) {
+            clearInterval(this.updateSessionInterval);
+            this.updateSessionInterval = null;
+          }
+          this.handleLoading(false);
+        };
+        break;
+      case 'submit-form-config':
+        console.log('【iframe】提交表单',this.eventData.get( localStorage.getItem('formEventID') || ''),   this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data));
+         ;
 
-    } else if (event.data && event.data.key === 'task-state' && event.data.state === 'error'){
-      console.log('iframe监听: 任务失败');
-      if (this.updateSessionInterval) {
-        clearInterval(this.updateSessionInterval);
-        this.updateSessionInterval = null;
-      }
-      this.handleLoading(false);
+        this.eventService.modifyEvent(this.userId, this.appName || window.sessionStorage.getItem('appName')|| 'agent', this.sessionId || window.sessionStorage.getItem('sessionId')|| '', localStorage.getItem('formEventID') || '', this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data)).subscribe((res) => {
+          console.log('提交完成', res)
+        });
+        break;
     }
   };
+
   ngOnInit(): void {
     this.syncSelectedAppFromUrl();
     this.updateSelectedAppUrl();
@@ -739,7 +754,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     if (e?.author) {
       this.createAgentIconColorClass(e.author);
     }
-
     if (e?.longRunningToolIds && e.longRunningToolIds.length > 0) {
       this.getAsyncFunctionsFromParts(e.longRunningToolIds, e.content.parts);
       const func = this.longRunningEvents[0];
@@ -812,6 +826,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       if(cleanedText && fields.length){
         message.text = cleanedText;
         this.userFormConfig = fields;
+        localStorage.setItem('formEventID', e.id)
         window.parent.postMessage(
           { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
           '*'
