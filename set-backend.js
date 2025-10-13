@@ -21,7 +21,7 @@ const backendUrl = process.env.npm_config_backend;
 
 if (!backendUrl) {
     console.error('Missing --backend argument');
-    console.error('Usage: npm run serve --backend=http://localhost:8002');
+    console.error('Usage: npm run serve --backend=http://localhost:800/2');
     process.exit(1);
 }
 
