@@ -278,10 +278,23 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       case 'submit-form-config':
         console.log('【iframe】提交表单',this.eventData.get( localStorage.getItem('formEventID') || ''),   this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data));
          ;
-
+        // 更新对话
         this.eventService.modifyEvent(this.userId, this.appName || window.sessionStorage.getItem('appName')|| 'agent', this.sessionId || window.sessionStorage.getItem('sessionId')|| '', localStorage.getItem('formEventID') || '', this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data)).subscribe((res) => {
           console.log('提交完成', res)
+          if(res && res.success) {
+            // 更新本地eventData
+            this.openSnackBar(res.message || 'Success', 'OK');
+            // this.eventData.set( localStorage.getItem('formEventID') || '', res.event);
+            window.parent.postMessage(
+              { key: 'modified-event-success', type: 'modified-event-success', sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')}, '*'
+            );
+          } else {
+            this.openSnackBar(res.message || 'Error', 'OK');
+          }
         });
+        // 更新成功，发送信息推送，外部关闭表单页面
+
+        // 页面关闭后，轮询结果
         break;
     }
   };
