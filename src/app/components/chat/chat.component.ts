@@ -113,6 +113,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   isEvalCaseEditing = signal(false);
   hasEvalCaseChanged = signal(false);
   isEvalEditMode = signal(false);
+  isUserNewMessage = false;
   videoElement!: HTMLVideoElement;
   currentMessage = '';
   updateSessionInterval: any;
@@ -292,9 +293,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             this.openSnackBar(res.message || 'Error', 'OK');
           }
         });
-        // 更新成功，发送信息推送，外部关闭表单页面
-
-        // 页面关闭后，轮询结果
         break;
     }
   };
@@ -472,6 +470,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async sendMessage(event: Event) {
+    this.isUserNewMessage = true;
     if (this.messages.length === 0) {
       this.scrollContainer.nativeElement.addEventListener('wheel', () => {
         this.scrollInterruptedSubject.next(true);
@@ -554,7 +553,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       complete: () => {
         this.streamingTextMessage = null;
         window.parent.postMessage(
-          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*'
+          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true,  }, '*'
         );
         this.sessionTab.reloadSession(this.sessionId);
         this.eventService.getTrace(this.sessionId)
@@ -569,7 +568,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
               this.changeDetectorRef.detectChanges();
             });
         this.traceService.setMessages(this.messages);
-        
+        // TODO: 重新处理最后一条消息
       },
     });
     // Clear input
@@ -804,6 +803,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       this.isChatMode.set(false);
     }
 
+
+    let hasForm = false;
     let message: any = {
       role,
       evalStatus: e?.evalStatus,
@@ -836,18 +837,29 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (part.text) {
       message.text = part.text;
       const [cleanedText, fields] = this.extractFormConfigs(part.text);
-      if(cleanedText && fields.length){
+      if (cleanedText && fields.length){
+        hasForm = true;
         message.text = cleanedText;
+        message.userFormConfig = fields;
         this.userFormConfig = fields;
-        localStorage.setItem('formEventID', e.id)
-        window.parent.postMessage(
+        localStorage.setItem('formEventID', e.id);
+        console.log('【表单配置】', this.userFormConfig);
+        this.isUserNewMessage && window.parent.postMessage(
           { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
           '*'
         );
       }
 
-
-
+      if (part.text.includes('# <must_execute>')){
+        const scriptContent = this.extractScriptContent(part.text);
+        console.log('【脚本内容】', scriptContent);
+        if (scriptContent){
+          this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
+            { key: 'mustExecuteScript', type: 'mustExecuteScript', script: scriptContent }, 
+            '*'
+          );
+        }
+      }
 
       
       message.thought = part.thought ? true : false;
@@ -898,7 +910,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     this.checkFinalResponse(part, e? e : null)
 
     if (needRefresh && Object.keys(part).length > 0) {
-      this.insertMessageBeforeLoadingMessage(message);
+      this.insertMessageBeforeLoadingMessage(hasForm ? [
+        message, 
+        {...message, formConfig: {name: 'Analysis Form'}
+        }
+      ] : [message]);
     }
   }
 
@@ -943,10 +959,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private insertMessageBeforeLoadingMessage(message: any) {
     const lastMessage = this.messages[this.messages.length - 1];
+    const messagesToInsert = Array.isArray(message) ? message : [message];
     if (lastMessage?.isLoading) {
-      this.messages.splice(this.messages.length - 1, 0, message);
+      this.messages.splice(this.messages.length - 1, 0, ...messagesToInsert);
     } else {
-      this.messages.push(message);
+      this.messages.push(...messagesToInsert);
     }
     this.messagesSubject.next(this.messages);
   }
@@ -1134,6 +1151,17 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     return str.substring(contentStartIndex, endIndex);
   }
 
+  extractScriptContent(str: string) {
+    const startTag = "```";
+    const endTag = "\n```";
+    const startIndex = str.indexOf(startTag);
+    if (startIndex === -1) return ""; // 未找到开始标记
+    const contentStartIndex = startIndex + startTag.length;
+    const endIndex = str.indexOf(endTag, contentStartIndex);
+    if (endIndex === -1) return ""; // 未找到结束标记
+    return str.substring(contentStartIndex, endIndex);
+  }
+
   extractFormConfigs(str: string) {
     const startTag = "<FORM_CONFIG>";
     const endTag = "</FORM_CONFIG>";
@@ -1223,6 +1251,15 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         this.rawSvgString = svg;
         this.renderedEventGraph = this.sanitizer.bypassSecurityTrustHtml(svg);
       });
+  }
+  clickFormConfig(i: number) {
+    const userFormConfig = this.messages[i-1].userFormConfig ;
+    this.userFormConfig = userFormConfig;
+    // localStorage.setItem('formEventID', this.messages[i-1].id);
+    window.parent.postMessage(
+      { key: 'userFormConfig', type: 'userFormConfig', data: userFormConfig }, 
+      '*'
+    );
   }
 
   userMessagesLength(i: number) {
@@ -1404,7 +1441,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   private updateCurrentSession(){
     console.log('执行: 更新session');
 
-    const currentMessageLength = this.messages.length;
+    // const currentMessageLength = this.messages.length;
     this.sessionService.getSession(this.userId, this.appName || window.sessionStorage.getItem('appName')|| 'agent', this.sessionId || window.sessionStorage.getItem('sessionId')|| '')
       .subscribe((session) => {
         if (!session || !session.id || !session.events || !session.state) {
@@ -1413,18 +1450,20 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         } 
         // 对比event和message，如果有 插入到指定位置;
         const currentMessageLength2 = this.messages.length;
-
+        console.log('当前消息条数：', currentMessageLength2);
+        console.log('session.events: ', session.events);
+        console.log('this.messages: ',  this.messages.length);
         if(session.events && session.events.length > this.messages.length){
-          console.log('【捕获】 events发生了变化, 当前消息条数：', currentMessageLength, currentMessageLength2);
+          console.log('【捕获】 events发生了变化, 当前消息条数：', currentMessageLength2, currentMessageLength2);
           this.traceService.resetTraceService();
           let index = 0;
           session.events.forEach((event: any) => {
             event.content?.parts?.forEach((part: any) => {
-              if(index < currentMessageLength) {
+              if(index < currentMessageLength2) {
                 index += 1;
                 return;
               }
-              console.log('【追加】 event: ', event, '当前index:', index, '当前消息条数：', currentMessageLength);
+              console.log('【追加】 event: ', event, '当前index:', index, '当前消息条数：', currentMessageLength2);
               this.storeMessage(
                 part, event, index, event.author === 'user' ? 'user' : 'bot'
               );
@@ -1457,6 +1496,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!session || !session.id || !session.events || !session.state) {
       return;
     }
+    this.isUserNewMessage = false;
     if (this.updateSessionInterval) {
       console.log('切换session，删除监听')
       clearInterval(this.updateSessionInterval);

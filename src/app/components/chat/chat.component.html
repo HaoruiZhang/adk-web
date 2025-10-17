@@ -341,7 +341,7 @@
                   <mat-icon fontSet="material-symbols-outlined">robot_2</mat-icon>
                 </button>
               }
-              @if (!message.functionCall && !message.functionResponse) {
+              @if (!message.functionCall && !message.functionResponse && !message.formConfig) {
                 <mat-card
                   class="message-card"
                   [ngClass]="{ 'eval-fail': message.evalStatus === 2 }"
@@ -570,6 +570,17 @@
                 >
                   <mat-icon>bolt</mat-icon>
                   {{ message.functionCall.name }}
+                </button>
+              }
+              @if (message.formConfig) {
+                <button
+                  mat-stroked-button
+                  [ngClass]="{'function-event-button-highlight': shouldMessageHighlighted(i)}"
+                  class="function-event-button"
+                  (click)="clickFormConfig(i)"
+                >
+                  <mat-icon>check</mat-icon>
+                  Check Form Config
                 </button>
               }
               @if (message.functionResponse) {
