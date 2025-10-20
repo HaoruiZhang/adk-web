@@ -26,7 +26,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {ActivatedRoute, NavigationEnd, Router} from '@angular/router';
 import {instance} from '@viz-js/viz';
-import {BehaviorSubject, catchError, combineLatest, distinctUntilChanged, filter, map, Observable, of, shareReplay, switchMap, take, tap, timestamp} from 'rxjs';
+import {BehaviorSubject, catchError, combineLatest, distinctUntilChanged, filter, last, map, Observable, of, shareReplay, switchMap, take, tap, timestamp} from 'rxjs';
 import stc from 'string-to-color';
 
 import {URLUtil} from '../../../utils/url-util';
@@ -274,6 +274,14 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             this.updateSessionInterval = null;
           }
           this.handleLoading(false);
+        } else if (event.data.state === 'noLogin'){
+          console.log('iframe监听: 未登录服务器');
+          if (this.updateSessionInterval) {
+            clearInterval(this.updateSessionInterval);
+            this.updateSessionInterval = null;
+          }
+          this.handleLoading(false);
+          this.openSnackBar( 'Please login to the remote server.', 'OK');
         };
         break;
       case 'submit-form-config':
@@ -409,6 +417,43 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       this.messagesSubject.next(this.messages);
       this.changeDetectorRef.detectChanges();
     }
+  }
+
+  handleFinalMessageIfFormConfig() {
+    console.log('处理最后一条消息:', );
+    const lastMessage = this.messages[this.messages.length - 1];
+    if (lastMessage?.text && lastMessage.text.includes('<FORM_CONFIG>')) {
+      this.messages.pop();
+      const [cleanedText, fields] = this.extractFormConfigs(lastMessage.text);
+      if (cleanedText && fields.length){
+        lastMessage.text = cleanedText;
+        lastMessage.userFormConfig = fields;
+        this.userFormConfig = fields;
+        localStorage.setItem('formEventID', lastMessage.id || '');
+        console.log('【表单配置】', this.userFormConfig);
+        this.isUserNewMessage && window.parent.postMessage(
+          { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
+          '*'
+        );
+        this.insertMessageBeforeLoadingMessage( [
+        lastMessage, 
+        {...lastMessage, formConfig: {name: 'Analysis Form'}
+        }
+      ] );
+      }
+    } else if (lastMessage.text.includes('# <must_execute>')){
+        const scriptContent = this.extractScriptContent(lastMessage.text);
+        console.log('【脚本内容】', scriptContent);
+        if (scriptContent){
+          this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
+            { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' }, 
+            '*'
+          );
+          window.parent.postMessage(
+          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true,  }, '*'
+        );
+        }
+      }
   }
 
   selectApp(appName: string) {
@@ -555,7 +600,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         window.parent.postMessage(
           { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true,  }, '*'
         );
-        this.sessionTab.reloadSession(this.sessionId);
+        this.sessionTab?.reloadSession && this.sessionTab?.reloadSession(this.sessionId);
         this.eventService.getTrace(this.sessionId)
             .pipe(catchError((error) => {
               if (error.status === 404) {
@@ -569,6 +614,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             });
         this.traceService.setMessages(this.messages);
         // TODO: 重新处理最后一条消息
+        this.handleFinalMessageIfFormConfig();
       },
     });
     // Clear input
@@ -835,6 +881,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       };
       this.eventMessageIndexArray[index] = part.inlineData;
     } else if (part.text) {
+
       message.text = part.text;
       const [cleanedText, fields] = this.extractFormConfigs(part.text);
       if (cleanedText && fields.length){
@@ -855,7 +902,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         console.log('【脚本内容】', scriptContent);
         if (scriptContent){
           this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
-            { key: 'mustExecuteScript', type: 'mustExecuteScript', script: scriptContent }, 
+            { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' }, 
             '*'
           );
         }
@@ -1438,6 +1485,21 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isNewMessageFromUser = false;
   }
 
+  // private compareMessagesAndUpdate(newEvents: any[]) {
+  //   const newMessages: any[] = [];
+  //   const 
+  // }
+  private getTotalMessagesCount(events: any[]): number {
+    const formNumberInMessages = this.messages.filter((m) => m.formConfig).length;
+    let count = 0;
+    events.forEach((event: any) => {
+      if (event.content && event.content.parts) {
+        count += event.content.parts.length;
+      }
+    });
+    return count + formNumberInMessages; // 加上表单消息数量，加这个或者减去messages里formConfig的数量都行
+  }
+
   private updateCurrentSession(){
     console.log('执行: 更新session');
 
@@ -1452,8 +1514,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         const currentMessageLength2 = this.messages.length;
         console.log('当前消息条数：', currentMessageLength2);
         console.log('session.events: ', session.events);
-        console.log('this.messages: ',  this.messages.length);
-        if(session.events && session.events.length > this.messages.length){
+        console.log('this.messages: ',  this.messages);
+        if(session.events && this.getTotalMessagesCount(session.events) > this.messages.length){
           console.log('【捕获】 events发生了变化, 当前消息条数：', currentMessageLength2, currentMessageLength2);
           this.traceService.resetTraceService();
           let index = 0;

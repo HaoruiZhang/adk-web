@@ -46,7 +46,7 @@
 					const { state } = event.data;
 					if (state === 'success') {
 						taskInfo.success();
-					} else if (state === 'error') {
+					} else if (state === 'error' || state === 'noLogin') {
 						taskInfo.error('Task execution failed');
 					}
 					window.removeEventListener('message', handleMessage);
