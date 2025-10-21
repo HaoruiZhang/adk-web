@@ -267,33 +267,39 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         }, 8000);
         break;
       case 'task-state':
-        if (event.data.state === 'error'){
-          console.log('iframe监听: 任务失败');
+        if (['error', 'noLogin'].includes(event.data.state)){
           if (this.updateSessionInterval) {
             clearInterval(this.updateSessionInterval);
             this.updateSessionInterval = null;
           }
           this.handleLoading(false);
-        } else if (event.data.state === 'noLogin'){
-          console.log('iframe监听: 未登录服务器');
-          if (this.updateSessionInterval) {
-            clearInterval(this.updateSessionInterval);
-            this.updateSessionInterval = null;
-          }
-          this.handleLoading(false);
-          this.openSnackBar( 'Please login to the remote server.', 'OK');
-        };
+          this.openSnackBar( event.data.msg || 'Submit task error.', 'OK');
+        } 
         break;
       case 'submit-form-config':
-        console.log('【iframe】提交表单',this.eventData.get( localStorage.getItem('formEventID') || ''),   this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data));
-         ;
+        console.log('【iframe】提交表单',
+          localStorage.getItem('formEventID'),
+          this.eventData,
+          this.eventData.get( localStorage.getItem('formEventID') || '') 
+      );
+        
+        console.log('【iframe】提交表单2', 
+           this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data));
+         
         // 更新对话
-        this.eventService.modifyEvent(this.userId, this.appName || window.sessionStorage.getItem('appName')|| 'agent', this.sessionId || window.sessionStorage.getItem('sessionId')|| '', localStorage.getItem('formEventID') || '', this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data)).subscribe((res) => {
+        this.eventService.modifyEvent(this.userId, 
+          this.appName || window.sessionStorage.getItem('appName') || 'agent', 
+          this.sessionId || window.sessionStorage.getItem('sessionId') || '', 
+          localStorage.getItem('formEventID') || '', 
+          this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data)
+        ).subscribe((res) => {
           console.log('提交完成', res)
+
           if(res && res.success) {
             // 更新本地eventData
             this.openSnackBar(res.message || 'Success', 'OK');
-            // this.eventData.set( localStorage.getItem('formEventID') || '', res.event);
+            const formMsgIndex = localStorage.getItem('formMsgIndex')!;
+            this.messages[parseInt(formMsgIndex)].userFormConfig[0] = event.data.data;
             window.parent.postMessage(
               { key: 'modified-event-success', type: 'modified-event-success', sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')}, '*'
             );
@@ -420,7 +426,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   handleFinalMessageIfFormConfig() {
-    console.log('处理最后一条消息:', );
+    console.log('【处理最后一条消息, messages: 】', this.messages);
+    console.log('【处理最后一条消息, events: 】', this.eventData);
     const lastMessage = this.messages[this.messages.length - 1];
     if (lastMessage?.text && lastMessage.text.includes('<FORM_CONFIG>')) {
       this.messages.pop();
@@ -429,8 +436,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         lastMessage.text = cleanedText;
         lastMessage.userFormConfig = fields;
         this.userFormConfig = fields;
-        localStorage.setItem('formEventID', lastMessage.id || '');
-        console.log('【表单配置】', this.userFormConfig);
+        console.log('lastMessage', lastMessage);
+        lastMessage.eventId = localStorage.getItem('finalEventId')!;
+        localStorage.setItem('formEventID', lastMessage.eventId);
+        localStorage.setItem('formMsgIndex', this.messages.length.toString());
+        console.log('【处理最后一条消息，表单配置】', this.userFormConfig);
         this.isUserNewMessage && window.parent.postMessage(
           { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
           '*'
@@ -712,6 +722,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           this.storeEvents(part, chunkJson, index);
           this.eventMessageIndexArray[index] = newChunk;
           this.streamingTextMessage = null;
+          localStorage.setItem('finalEventId', chunkJson.id);
           return;
         }
         this.streamingTextMessage.text += newChunk;
@@ -881,15 +892,17 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       };
       this.eventMessageIndexArray[index] = part.inlineData;
     } else if (part.text) {
-
+      console.log('【storeMessage】, e:', e)
       message.text = part.text;
       const [cleanedText, fields] = this.extractFormConfigs(part.text);
       if (cleanedText && fields.length){
         hasForm = true;
         message.text = cleanedText;
+        message.eventId = e?.id;
         message.userFormConfig = fields;
         this.userFormConfig = fields;
-        localStorage.setItem('formEventID', e.id);
+        localStorage.setItem('formEventID', e?.id);
+        localStorage.setItem('formMsgIndex', this.messages.length.toString());
         console.log('【表单配置】', this.userFormConfig);
         this.isUserNewMessage && window.parent.postMessage(
           { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
@@ -1302,7 +1315,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   clickFormConfig(i: number) {
     const userFormConfig = this.messages[i-1].userFormConfig ;
     this.userFormConfig = userFormConfig;
-    // localStorage.setItem('formEventID', this.messages[i-1].id);
+    localStorage.setItem('formEventID', this.messages[i-1].eventId);
+    localStorage.setItem('formMsgIndex', i-1+'');
     window.parent.postMessage(
       { key: 'userFormConfig', type: 'userFormConfig', data: userFormConfig }, 
       '*'
@@ -1490,14 +1504,13 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   //   const 
   // }
   private getTotalMessagesCount(events: any[]): number {
-    const formNumberInMessages = this.messages.filter((m) => m.formConfig).length;
     let count = 0;
     events.forEach((event: any) => {
       if (event.content && event.content.parts) {
         count += event.content.parts.length;
       }
     });
-    return count + formNumberInMessages; // 加上表单消息数量，加这个或者减去messages里formConfig的数量都行
+    return count; // 加上表单消息数量，加这个或者减去messages里formConfig的数量都行
   }
 
   private updateCurrentSession(){
@@ -1512,20 +1525,22 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         } 
         // 对比event和message，如果有 插入到指定位置;
         const currentMessageLength2 = this.messages.length;
-        console.log('当前消息条数：', currentMessageLength2);
+        const formNumberInMessages = this.messages.filter((m) => m.formConfig).length;
+        const rawMessageLength = currentMessageLength2 - formNumberInMessages;
+        console.log('当前实际消息条数：', rawMessageLength);
         console.log('session.events: ', session.events);
         console.log('this.messages: ',  this.messages);
-        if(session.events && this.getTotalMessagesCount(session.events) > this.messages.length){
-          console.log('【捕获】 events发生了变化, 当前消息条数：', currentMessageLength2, currentMessageLength2);
+        if(session.events && this.getTotalMessagesCount(session.events) > rawMessageLength){
+          console.log('【捕获】 events发生了变化, 当前消息条数：', );
           this.traceService.resetTraceService();
           let index = 0;
           session.events.forEach((event: any) => {
             event.content?.parts?.forEach((part: any) => {
-              if(index < currentMessageLength2) {
+              if(index < rawMessageLength) {
                 index += 1;
                 return;
               }
-              console.log('【追加】 event: ', event, '当前index:', index, '当前消息条数：', currentMessageLength2);
+              console.log('【追加】 event: ', event, '当前index:', index, '当前消息条数：', rawMessageLength);
               this.storeMessage(
                 part, event, index, event.author === 'user' ? 'user' : 'bot'
               );
