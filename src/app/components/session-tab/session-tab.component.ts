@@ -70,7 +70,6 @@ export class SessionTabComponent implements OnInit {
         // });
 
         this.sessionList = res;
-        console.log("Session list updated:", this.sessionList);
       });
   }
 
@@ -81,7 +80,6 @@ export class SessionTabComponent implements OnInit {
   }
  
   getSession(sessionId: string) {
-    console.log("Selected session ID:", this);
     this.sessionService
       .getSession(this.userId, this.appName, sessionId)
       .subscribe((res) => {
