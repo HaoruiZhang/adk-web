@@ -27,12 +27,12 @@ export class EventService {
   constructor(private http: HttpClient) {}
 
   getEventTrace(id: string) {
-    const url = this.apiServerDomain + `/debug/trace/${id}`;
+    const url = (this.apiServerDomain || (window as any)['runtimeConfig']?.backendUrl) + `/debug/trace/${id}`;
     return this.http.get<any>(url);
   }
 
   getTrace(sessionId: string) {
-    const url = this.apiServerDomain + `/debug/trace/session/${sessionId}`;
+    const url = (this.apiServerDomain || (window as any)['runtimeConfig']?.backendUrl) + `/debug/trace/session/${sessionId}`;
     return this.http.get<any>(url);
   }
 
@@ -43,7 +43,7 @@ export class EventService {
     eventId: string
   ) {
     const url =
-      this.apiServerDomain +
+      (this.apiServerDomain || (window as any)['runtimeConfig']?.backendUrl) +
       `/apps/${appName}/users/${userId}/sessions/${sessionId}/events/${eventId}/graph`;
     return this.http.get<{ dotSrc?: string }>(url);
   }

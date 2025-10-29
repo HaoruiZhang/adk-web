@@ -422,7 +422,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   handleFinalMessageIfFormConfig() {
-    console.log('【处理最后一条消息, messages: 】', this.messages);
+    console.log('【runSse完成, 手动处理最后一条消息, messages: 】', this.messages); // green
     console.log('---- events: ', this.eventData);
     const lastMessage = this.messages[this.messages.length - 1];
     if (!lastMessage?.text) return;
@@ -437,7 +437,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         this.userFormConfig = fields;
         localStorage.setItem('formEventID', lastMessage.eventId);
         localStorage.setItem('formMsgIndex', this.messages.length.toString());
-        console.log('---- 表单配置: ', this.userFormConfig);
         this.isUserNewMessage && window.parent.postMessage(
           { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
           '*'
@@ -457,12 +456,12 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             '*'
           );
           window.parent.postMessage(
-          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true,  }, '*'
+          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!, value: true,  }, '*'
         );
           this.insertMessageBeforeLoadingMessage( [ 
             lastMessage,
-            // {...lastMessage, taskInfo: { eventId: localStorage.getItem('finalEventId')!}
-            // }
+            {...lastMessage, taskInfo: { eventId: localStorage.getItem('finalEventId')!, sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!}
+            }
           ] );
         }
     } else {
@@ -577,7 +576,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     const req: AgentRunRequest = {
       appName: this.appName,
       userId: this.userId,
-      sessionId: this.sessionId,
+      sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!,
       newMessage: {
         'role': 'user',
         'parts': await this.getUserMessageParts(),
@@ -614,10 +613,10 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       complete: () => {
         this.streamingTextMessage = null;
         window.parent.postMessage(
-          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true,  }, '*'
+          { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!, value: true,  }, '*'
         );
-        this.sessionTab?.reloadSession && this.sessionTab?.reloadSession(this.sessionId);
-        this.eventService.getTrace(this.sessionId)
+        this.sessionTab?.reloadSession && this.sessionTab?.reloadSession(this.sessionId || window.sessionStorage.getItem('sessionId')!);
+        this.eventService.getTrace(this.sessionId || window.sessionStorage.getItem('sessionId')!)
             .pipe(catchError((error) => {
               if (error.status === 404) {
                 return of(null);
@@ -868,7 +867,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
 
-    let hasForm = false;
     let message: any = {
       role,
       evalStatus: e?.evalStatus,
@@ -900,34 +898,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       this.eventMessageIndexArray[index] = part.inlineData;
     } else if (part.text) {
       message.text = part.text;
-      const [cleanedText, fields] = this.extractFormConfigs(part.text);
-      if (cleanedText && fields.length){
-        hasForm = true;
-        message.text = cleanedText;
-        message.eventId = e?.id;
-        message.userFormConfig = fields;
-        this.userFormConfig = fields;
-        localStorage.setItem('formEventID', e?.id);
-        localStorage.setItem('formMsgIndex', this.messages.length.toString());
-        console.log('---- 表单配置: ', this.userFormConfig);
-        this.isUserNewMessage && window.parent.postMessage(
-          { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
-          '*'
-        );
-      }
-
-      if (part.text.includes('# <must_execute>')){
-        const scriptContent = this.extractScriptContent(part.text);
-        console.log('---- 脚本内容：', scriptContent);
-        if (scriptContent){
-          this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
-            { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' }, 
-            '*'
-          );
-        }
-      }
-
-      
       message.thought = part.thought ? true : false;
       if (e?.groundingMetadata && e.groundingMetadata.searchEntryPoint &&
         e.groundingMetadata.searchEntryPoint.renderedContent) {
@@ -936,6 +906,48 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       message.eventId = e?.id;
       this.eventMessageIndexArray[index] = part.text;
+      if (part.text.includes('<FORM_CONFIG>')) {
+        const [cleanedText, fields] = this.extractFormConfigs(part.text);
+        if (cleanedText && fields.length){
+          message.text = cleanedText;
+          message.userFormConfig = fields;
+          this.userFormConfig = fields;
+          localStorage.setItem('formEventID', e?.eventId);
+          localStorage.setItem('formMsgIndex', this.messages.length.toString());
+          this.isUserNewMessage && window.parent.postMessage(
+            { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
+            '*'
+          );
+          this.insertMessageBeforeLoadingMessage( [
+          message, 
+          {...message, formConfig: {name: 'Analysis Form'}
+          }
+        ] );
+        }
+      } else if (part.text.includes('# <must_execute>')){
+          const scriptContent = this.extractScriptContent(part.text);
+          if (scriptContent){
+            console.log('---- 脚本内容: ', scriptContent);
+            console.log('---- this.sessionId: ', this.sessionId, window.sessionStorage.getItem('sessionId'));
+            this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
+              { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' , eventId: message.eventId}, 
+              '*'
+            );
+            window.parent.postMessage(
+            { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!, value: true,  }, '*'
+          );
+            this.insertMessageBeforeLoadingMessage( [ 
+              message,
+              {...message, taskInfo: { eventId: message.eventId, sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')}
+              }
+            ] );
+          }
+      } else {
+        console.log('---- 普通文本消息，插入消息:', message);
+        this.insertMessageBeforeLoadingMessage(message);
+      }
+      return;
+      
     } else if (part.functionCall) {
       message.functionCall = part.functionCall;
       message.eventId = e?.id;
@@ -976,17 +988,13 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     this.checkFinalResponse(part, e? e : null)
 
     if (needRefresh && Object.keys(part).length > 0) {
-      this.insertMessageBeforeLoadingMessage(hasForm ? [
-        message, 
-        {...message, formConfig: {name: 'Analysis Form'}
-        }
-      ] : [message]);
+      this.insertMessageBeforeLoadingMessage(message);
     }
   }
 
   private checkFinalResponse(part: any, e?: any ){
      // 判断是否对话结束
-    console.log('【checkFinalResponse】')
+    console.log('【checkFinalResponse】', part, e);
     if (e?.actions.skip_summarization || e?.longRunningToolIds?.length){
       this.isFinalResponse = true;
     } else if (!part.functionResponse && !part.functionCall  && !e?.partial && !part.text?.includes('<backend-reply-start>')) {
@@ -1005,8 +1013,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       this.handleLoading(false);
       this.traceService.resetTraceService();
       this.isModelThinkingSubject.next(false);
-      this.sessionTab?.reloadSession && this.sessionTab?.reloadSession(this.sessionId);
-      this.eventService.getTrace(this.sessionId)
+      this.sessionTab?.reloadSession && this.sessionTab?.reloadSession(this.sessionId || window.sessionStorage.getItem('sessionId')!);
+      this.eventService.getTrace(this.sessionId || window.sessionStorage.getItem('sessionId')!)
           .pipe(catchError((error) => {
             if (error.status === 404) {
               return of(null);
@@ -1019,7 +1027,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           });
       this.traceService.setMessages(this.messages);
       window.parent.postMessage(
-        { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId, value: true }, '*'
+        { key: 'isFinalResponse', type: 'isFinalResponse', sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!, value: true }, '*'
       );
     }
   }
@@ -1030,8 +1038,10 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     const lastMessage = this.messages[this.messages.length - 1];
     const messagesToInsert = Array.isArray(message) ? message : [message];
     if (lastMessage?.isLoading) {
+      console.log('---- 在loading消息前插入消息: ', messagesToInsert);
       this.messages.splice(this.messages.length - 1, 0, ...messagesToInsert);
     } else {
+      console.log('---- 直接在末尾插入消息: ', messagesToInsert);
       this.messages.push(...messagesToInsert);
     }
     this.messagesSubject.next(this.messages);
@@ -1060,7 +1070,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       .getArtifactVersion(
         this.userId,
         this.appName,
-        this.sessionId,
+        this.sessionId || window.sessionStorage.getItem('sessionId')!,
         artifactId,
         versionId,
       )
@@ -1127,7 +1137,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     const authResponse: AgentRunRequest = {
       appName: this.appName,
       userId: this.userId,
-      sessionId: this.sessionId,
+      sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!,
       newMessage: {
         'role': 'user',
         'parts': [],
@@ -1179,7 +1189,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         event: this.longRunningEvents[0],
         appName: this.appName,
         userId: this.userId,
-        sessionId: this.sessionId,
+        sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!,
         functionCallEventId: this.functionCallEventId,
       },
     });
@@ -1303,7 +1313,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       .getEvent(
         this.userId,
         this.appName,
-        this.sessionId,
+        this.sessionId || window.sessionStorage.getItem('sessionId')!,
         this.selectedEvent.id,
       )
       .subscribe(async (res) => {
@@ -1331,9 +1341,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       '*'
     );
   }
-  clickTaskInfo(i: number) {
+  clickTaskInfo(i: number) { // green
     window.parent.postMessage(
-      { key: 'showTaskInfo', type: 'showTaskInfo', eventId: this.messages[i].eventId }, 
+      { key: 'showTaskInfo', type: 'showTaskInfo', eventId: this.messages[i].eventId, sessionId:  this.sessionId || window.sessionStorage.getItem('sessionId')! }, 
       '*'
     );
   }
@@ -1344,7 +1354,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if(!this.messages.length){
-      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId);
+      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!);
     }
     this.webSocketService.closeConnection();
   }
@@ -1357,7 +1367,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       this.updateSessionInterval = null;
     }
     if (!this.messages.length) {
-      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId).subscribe();
+      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe();
     }
   }
 
@@ -1381,7 +1391,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   startAudioRecording() {
-    if (this.sessionHasUsedBidi.has(this.sessionId)) {
+    if (this.sessionHasUsedBidi.has(this.sessionId || window.sessionStorage.getItem('sessionId')!)) {
       this.openSnackBar(BIDI_STREAMING_RESTART_WARNING, 'OK')
       return;
     }
@@ -1389,13 +1399,13 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isAudioRecording = true;
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     this.webSocketService.connect(
-      `${protocol}://${URLUtil.getWSServerUrl()}/run_live?app_name=${this.appName}&user_id=${this.userId}&session_id=${this.sessionId}`,
+      `${protocol}://${URLUtil.getWSServerUrl()}/run_live?app_name=${this.appName}&user_id=${this.userId}&session_id=${this.sessionId || window.sessionStorage.getItem('sessionId')!}`,
     );
     this.audioService.startRecording();
     this.messages.push({ role: 'user', text: 'Speaking...' });
     this.messages.push({ role: 'bot', text: 'Speaking...' });
     this.messagesSubject.next(this.messages);
-    this.sessionHasUsedBidi.add(this.sessionId);
+    this.sessionHasUsedBidi.add(this.sessionId || window.sessionStorage.getItem('sessionId')!);
   }
 
   stopAudioRecording() {
@@ -1410,7 +1420,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   startVideoRecording() {
-    if (this.sessionHasUsedBidi.has(this.sessionId)) {
+    if (this.sessionHasUsedBidi.has(this.sessionId || window.sessionStorage.getItem('sessionId')!)) {
       this.openSnackBar(BIDI_STREAMING_RESTART_WARNING, 'OK')
       return;
     }
@@ -1418,13 +1428,13 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isVideoRecording = true;
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     this.webSocketService.connect(
-      `${protocol}://${URLUtil.getWSServerUrl()}/run_live?app_name=${this.appName}&user_id=${this.userId}&session_id=${this.sessionId}`,
+      `${protocol}://${URLUtil.getWSServerUrl()}/run_live?app_name=${this.appName}&user_id=${this.userId}&session_id=${this.sessionId || window.sessionStorage.getItem('sessionId')!}`,
     );
     this.videoService.startRecording(this.videoContainer);
     this.audioService.startRecording();
     this.messages.push({ role: 'user', text: 'Speaking...' });
     this.messagesSubject.next(this.messages);
-    this.sessionHasUsedBidi.add(this.sessionId);
+    this.sessionHasUsedBidi.add(this.sessionId || window.sessionStorage.getItem('sessionId')!);
   }
 
   stopVideoRecording() {
@@ -1491,7 +1501,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected handleReturnToSession(event: boolean) {
-    this.sessionTab.getSession(this.sessionId);
+    this.sessionTab.getSession(this.sessionId || window.sessionStorage.getItem('sessionId')!);
     this.evalTab.resetEvalCase();
     this.isChatMode.set(true);
   }
@@ -1526,10 +1536,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     return count; // 加上表单消息数量，加这个或者减去messages里formConfig的数量都行
   }
 
-  private updateCurrentSession(){
+  private updateCurrentSession(){ // green
     console.log('【updateCurrentSession】轮询更新session');
-
-    // const currentMessageLength = this.messages.length;
     this.sessionService.getSession(this.userId, this.appName || window.sessionStorage.getItem('appName')|| 'agent', this.sessionId || window.sessionStorage.getItem('sessionId')|| '')
       .subscribe((session) => {
         if (!session || !session.id || !session.events || !session.state) {
@@ -1538,8 +1546,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         } 
         // 对比event和message，如果有 插入到指定位置;
         const currentMessageLength2 = this.messages.length;
-        const formNumberInMessages = this.messages.filter((m) => m.formConfig).length;
-        const rawMessageLength = currentMessageLength2 - formNumberInMessages;
+        const sidePanelButtonsNum = this.messages.filter((m) => {return m.formConfig|| m.taskInfo}).length;
+        const rawMessageLength = currentMessageLength2 - sidePanelButtonsNum;
         console.log('---- 当前实际消息条数：', rawMessageLength);
         console.log('---- session.events: ', session.events);
         console.log('---- this.messages: ',  this.messages);
@@ -1565,18 +1573,20 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           });
 
           
-          this.eventService.getTrace(this.sessionId).subscribe(res => {
+          this.eventService.getTrace(this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe(res => {
             this.traceData = res;
             this.traceService.setEventData(this.eventData);
             this.traceService.setMessages(this.messages);
           });
           this.messagesSubject.next(this.messages);
+          
+          const finalEvent = session.events[session.events.length -1];
+          this.checkFinalResponse(finalEvent.content.parts[finalEvent.content.parts.length-1], session.events[session.events.length - 1]);
+
           setTimeout(() => {
             this.scrollToBottom();
-          }, 1000);
-           
+          }, 200);
         }
-        
       });
   }
   
@@ -1595,7 +1605,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     if(!this.messages.length){
       console.log('---- Deleting session as no messages found');
       try{
-        this.sessionService.deleteSession(this.userId, this.appName, this.sessionId).subscribe();
+        this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe();
         this.sessionTab.refreshSession();
       }catch (e) {
         console.error('---- Error deleting session:', e);
@@ -1628,7 +1638,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     });
 
-    this.eventService.getTrace(this.sessionId).subscribe(res => {
+    this.eventService.getTrace(this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe(res => {
       this.traceData = res;
       this.traceService.setEventData(this.eventData);
       this.traceService.setMessages(this.messages);
@@ -1868,7 +1878,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       .getEvent(
         this.userId,
         this.appName,
-        this.sessionId,
+        this.sessionId || window.sessionStorage.getItem('sessionId')!,
         this.selectedEvent.id,
       )
       .subscribe(async (res) => {
@@ -1891,7 +1901,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     const dialogData: DeleteSessionDialogData = {
       title: 'Confirm delete',
       message:
-        `Are you sure you want to delete this session ${this.sessionId}?`,
+        `Are you sure you want to delete this session ${this.sessionId || window.sessionStorage.getItem('sessionId')!}?`,
       confirmButtonText: 'Delete',
       cancelButtonText: 'Cancel',
     };
@@ -1957,13 +1967,13 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   private updateSelectedSessionUrl() {
     const url = this.router
                     .createUrlTree([], {
-                      queryParams: {'session': this.sessionId},
+                      queryParams: {'session': this.sessionId || window.sessionStorage.getItem('sessionId')!},
                       queryParamsHandling: 'merge',
                     })
                     .toString();
     this.location.replaceState(url);
     window.parent.postMessage(
-      { key: 'updateSessionUrl', type: 'updateSessionUrl', sessionId: this.sessionId }, '*');
+      { key: 'updateSessionUrl', type: 'updateSessionUrl', sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')! }, '*');
     setTimeout(() => {
       this.scrollToBottom();
     });
@@ -2052,11 +2062,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected exportSession() {
-    this.sessionService.getSession(this.userId, this.appName, this.sessionId)
+    this.sessionService.getSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!)
       .subscribe((res) => {
         console.log(res);
         this.downloadService.downloadObjectAsJson(
-          res, `session-${this.sessionId}.json`);
+          res, `session-${this.sessionId || window.sessionStorage.getItem('sessionId')!}.json`);
       });
   }
 
