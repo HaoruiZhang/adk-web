@@ -323,7 +323,8 @@
         <div #autoScroll class="chat-messages">
           <div #videoContainer></div>
           @for (message of messages; track message; let i = $index) {
-            @if (message.text && message.text.startsWith("<backend-reply-start>")){
+            @if ((message.text && message.text.startsWith("<backend-reply-start>"))
+               || (message.functionResponse && message.functionResponse.hideInChat) && message.role === 'bot') {
               } @else {
             <div
               [ngClass]="{
@@ -568,8 +569,9 @@
                   class="function-event-button"
                   (click)="clickEvent(i)"
                 >
-                  <mat-icon>bolt</mat-icon>
-                  {{ message.functionCall.name }}
+                  🔍 
+                  {{ (message.functionCall.args && message.functionCall.args.query) ? `查询${message.functionCall.args.query}` : `执行${message.functionCall.name}`}}
+                  {{ message.functionCall.result ? '...✅':'...'}}
                 </button>
               }
               @if (message.formConfig) {
@@ -591,7 +593,7 @@
                   (click)="clickTaskInfo(i)"
                 >
                   <mat-icon>check</mat-icon>
-                  Task Info
+                  View Task Info
                 </button>
               }
               @if (message.functionResponse) {
@@ -601,8 +603,8 @@
                   class="function-event-button"
                   (click)="clickEvent(i)"
                 >
-                  <mat-icon>check</mat-icon>
-                  {{ message.functionResponse.name }}
+                  ✅ 
+                  {{'获得'+ message.functionResponse.query || message.functionResponse.name }}
                 </button>
               }
               <div

@@ -250,11 +250,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   private runTaskListener = (event: MessageEvent) => {
-    console.log('【runTaskListener】iframe接收事件: ', event.data.key, '\n---- 消息体: ', event.data);
+    console.log('📢📢 【_runTaskListener】iframe接收事件: ', event.data.key, '\n---- 消息体: ', event.data);
     if(!event.data) return;
     switch(event.data.key){
       case 'startRunTask':
-        console.log('---- 监听: 运行任务');
+        console.log('  ---- 监听: 运行任务');
         this.handleLoading(true);
         if (this.updateSessionInterval) {
           clearInterval(this.updateSessionInterval);
@@ -277,10 +277,10 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         } 
         break;
       case 'submit-form-config':
-        console.log('---- 提交表单',
-          '\n---- formEventID: ', localStorage.getItem('formEventID'),
-          '\n---- eventData: ', this.eventData,
-          '\n---- eventData[formID]: ', this.eventData.get( localStorage.getItem('formEventID') || '') 
+        console.log('  ---- 提交表单',
+          '\n   ---- formEventID: ', localStorage.getItem('formEventID'),
+          '\n   ---- eventData: ', this.eventData,
+          '\n   ---- eventData[formID]: ', this.eventData.get( localStorage.getItem('formEventID') || '') 
       );
          
         // 更新对话
@@ -290,8 +290,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           localStorage.getItem('formEventID') || '', 
           this.eventData.get( localStorage.getItem('formEventID') || '').content.parts[0].text.replace(this.userFormConfig[0], event.data.data)
         ).subscribe((res) => {
-          console.log('---- modifyEvent res: ', res)
-
           if(res && res.success) {
             // 更新本地eventData
             this.openSnackBar(res.message || 'Success', 'OK');
@@ -407,7 +405,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   handleLoading(isLoading: boolean) {
-    console.log('【handleLoading】修改loading状态:', isLoading);
+    console.log('🛠️【handleLoading】修改loading状态:', isLoading);
     const lastMessage = this.messages[this.messages.length - 1];
     if (isLoading) {
       if (!lastMessage?.isLoading && !this.streamingTextMessage) {
@@ -422,11 +420,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   handleFinalMessageIfFormConfig() {
-    console.log('【runSse完成, 手动处理最后一条消息, messages: 】', this.messages); // green
-    console.log('---- events: ', this.eventData);
+    console.log('🛠️【runSse完成, 手动处理最后一条消息, messages: 】', this.messages); // green
+    // console.log('---- events: ', this.eventData);
     const lastMessage = this.messages[this.messages.length - 1];
     if (!lastMessage?.text) return;
-    console.log('---- lastMessage', lastMessage);
+    // console.log('---- lastMessage', lastMessage);
     this.messages.pop();
     lastMessage.eventId = localStorage.getItem('finalEventId')!;
     if (lastMessage.text.includes('<FORM_CONFIG>')) {
@@ -450,7 +448,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (lastMessage.text.includes('# <must_execute>')){
         const scriptContent = this.extractScriptContent(lastMessage.text);
         if (scriptContent){
-          console.log('---- 脚本内容: ', scriptContent);
+          // console.log('---- 脚本内容: ', scriptContent);
           this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
             { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' , eventId: localStorage.getItem('finalEventId')!}, 
             '*'
@@ -824,8 +822,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   private storeMessage(
       part: any, e: any, index: number, role: string, needRefresh = true, invocationIndex?: number,
       additionalIndeces?: any) {
-    console.log('【storeMessage】part: ', part, 
-      '\n---- e: ', e,  )
+    // console.log('【storeMessage】part: ', part, 
+    //   '\n---- e: ', e,  )
     if (e?.author) {
       this.createAgentIconColorClass(e.author);
     }
@@ -927,8 +925,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       } else if (part.text.includes('# <must_execute>')){
           const scriptContent = this.extractScriptContent(part.text);
           if (scriptContent){
-            console.log('---- 脚本内容: ', scriptContent);
-            console.log('---- this.sessionId: ', this.sessionId, window.sessionStorage.getItem('sessionId'));
+            // console.log('---- 脚本内容: ', scriptContent);
+            // console.log('---- this.sessionId: ', this.sessionId, window.sessionStorage.getItem('sessionId'));
             this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
               { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' , eventId: message.eventId}, 
               '*'
@@ -943,7 +941,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
             ] );
           }
       } else {
-        console.log('---- 普通文本消息，插入消息:', message);
+        // console.log('---- 普通文本消息，插入消息:', message);
         this.insertMessageBeforeLoadingMessage(message);
       }
       return;
@@ -955,6 +953,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (part.functionResponse) {
       message.functionResponse = part.functionResponse;
       message.eventId = e?.id;
+      message.functionResponse['query'] = this.getQueryFromId(part.functionResponse.id);
+      message.functionResponse['hideInChat'] = !['zhanghaorui-', 'zhanhaojia', 'liqingjiao-','liugaotong-','zhongzheng-','luhuifang-', 'zhaoxiong-'].includes(localStorage.getItem('userId')||'');
       if( part.functionResponse.name && part.functionResponse.name ==='extract_user_specified_mime_type_path' && this.isNewMessageFromUser){
         window.parent.postMessage(
           { key: 'specifiedMimePath', type: 'specifiedMimePath', path: part.functionResponse.response.mime_type_path }, 
@@ -992,9 +992,44 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // private getQueryFromId(id: string){
+  //   this.messages.forEach(message => {
+  //     if(message.functionCall && message.functionCall.id === id){
+  //       console.log('📦 查询到对应的functionCall: ', message.functionCall.args)
+  //       return message.functionCall.args?.query || message.functionCall.args?.agent_name
+  //     }
+  //   })
+  // }
+  private getQueryFromId(id: string): string | undefined {
+  if (!id) return undefined;
+
+  // 先在 messages 中查找对应的 functionCall
+  for (const message of this.messages) {
+    const fc = message?.functionCall;
+    if (fc && fc.id === id) {
+      // console.log('📦 查询到对应的functionCall: ', fc.args);
+      fc['result'] = '✅'
+      return fc.args?.query ?? fc.args?.agent_name;
+    }
+  }
+
+  // 作为补偿，再在 eventMessageIndexArray 中查找（有时函数调用保存在这里）
+  for (const item of this.eventMessageIndexArray) {
+    const fc = item?.functionCall;
+    if (fc && fc.id === id) {
+      // console.log('📦 查询到对应的functionCall(从eventMessageIndexArray): ', fc.args);
+      fc['result'] = '✅'
+      return fc.args?.query ?? fc.args?.agent_name;
+    }
+  }
+
+  // 未找到时返回 undefined
+  return undefined;
+}
+
   private checkFinalResponse(part: any, e?: any ){
      // 判断是否对话结束
-    console.log('【checkFinalResponse】', part, e);
+    // console.log('【checkFinalResponse】', part, e);
     if (e?.actions.skip_summarization || e?.longRunningToolIds?.length){
       this.isFinalResponse = true;
     } else if (!part.functionResponse && !part.functionCall  && !e?.partial && !part.text?.includes('<backend-reply-start>')) {
@@ -1004,7 +1039,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (this.isFinalResponse && this.updateSessionInterval) {
-      console.log('---- 判断出对话已经结束! ')
+      // console.log('---- 判断出对话已经结束! ')
 
       if (this.updateSessionInterval) {
         clearInterval(this.updateSessionInterval);
@@ -1033,15 +1068,15 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private insertMessageBeforeLoadingMessage(message: any) {
-    console.log('【insertMessageBeforeLoadingMessage】, message:', message)
-    console.log('---- 当前messages:', this.messages)
+    console.log('📩【insertMessageBeforeLoadingMessage】, message:', message)
+    console.log('   ---- 当前messages:', this.messages)
     const lastMessage = this.messages[this.messages.length - 1];
     const messagesToInsert = Array.isArray(message) ? message : [message];
     if (lastMessage?.isLoading) {
-      console.log('---- 在loading消息前插入消息: ', messagesToInsert);
+      console.log('     ---- 在loading消息前插入消息: ', messagesToInsert);
       this.messages.splice(this.messages.length - 1, 0, ...messagesToInsert);
     } else {
-      console.log('---- 直接在末尾插入消息: ', messagesToInsert);
+      console.log('     ---- 直接在末尾插入消息: ', messagesToInsert);
       this.messages.push(...messagesToInsert);
     }
     this.messagesSubject.next(this.messages);
@@ -1537,7 +1572,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateCurrentSession(){ // green
-    console.log('【updateCurrentSession】轮询更新session');
+    console.log('🔍【updateCurrentSession】轮询更新session');
     this.sessionService.getSession(this.userId, this.appName || window.sessionStorage.getItem('appName')|| 'agent', this.sessionId || window.sessionStorage.getItem('sessionId')|| '')
       .subscribe((session) => {
         if (!session || !session.id || !session.events || !session.state) {
@@ -1548,11 +1583,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         const currentMessageLength2 = this.messages.length;
         const sidePanelButtonsNum = this.messages.filter((m) => {return m.formConfig|| m.taskInfo}).length;
         const rawMessageLength = currentMessageLength2 - sidePanelButtonsNum;
-        console.log('---- 当前实际消息条数：', rawMessageLength);
-        console.log('---- session.events: ', session.events);
-        console.log('---- this.messages: ',  this.messages);
+        console.log('   ---- 当前实际消息条数：', rawMessageLength);
+        console.log('   ---- session.events: ', session.events);
+        console.log('   ---- this.messages: ',  this.messages);
         if(session.events && this.getTotalMessagesCount(session.events) > rawMessageLength){
-          console.log('--【捕获】events发生了变化', );
+          console.log('     ----【捕获】events发生了变化', );
           this.traceService.resetTraceService();
           let index = 0;
           session.events.forEach((event: any) => {
@@ -1561,7 +1596,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
                 index += 1;
                 return;
               }
-              console.log('--【追加】 event: ', event, '当前index:', index, '当前消息条数：', rawMessageLength);
+              console.log('     ----【追加】 event: ', event);
               this.storeMessage(
                 part, event, index, event.author === 'user' ? 'user' : 'bot'
               );
@@ -1595,20 +1630,18 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!session || !session.id || !session.events || !session.state) {
       return;
     }
-    console.log('【updateWithSelectedSession, 切换session】')
-
     this.isUserNewMessage = false;
     if (this.updateSessionInterval) {
       clearInterval(this.updateSessionInterval);
       this.updateSessionInterval = null;
     }
     if(!this.messages.length){
-      console.log('---- Deleting session as no messages found');
+      console.log('⚠️ ---- Deleting session as no messages found');
       try{
         this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe();
         this.sessionTab.refreshSession();
       }catch (e) {
-        console.error('---- Error deleting session:', e);
+        console.error('❌ ---- Error deleting session:', e);
       }
     }
     this.traceService.resetTraceService();
@@ -2064,7 +2097,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   protected exportSession() {
     this.sessionService.getSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!)
       .subscribe((res) => {
-        console.log(res);
         this.downloadService.downloadObjectAsJson(
           res, `session-${this.sessionId || window.sessionStorage.getItem('sessionId')!}.json`);
       });

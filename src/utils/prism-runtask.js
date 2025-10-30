@@ -115,6 +115,8 @@
 
 	Prism.plugins.toolbar.registerButton('run-task', function (env) {
 		if (!['python', 'bash', 'r'].includes(env.language)) return;
+		const userId = localStorage.getItem('userId');
+		if (!userId || !['zhanghaorui', 'zhanhaojia', 'liqingjiao','liugaotong','zhongzheng','luhuifang', 'zhaoxiong'].includes(userId)) return;
 		var element = env.element;
 
 		var settings = getSettings(element);

@@ -44,10 +44,10 @@
     return queryParams.split("&").find(param => param.startsWith(variable + "="))?.split("=")[1] || "";
   } else {
     let vars2 = vars1[0].split("&");
-    console.log("getQueryVariable1", variable, vars2);
+    // console.log("getQueryVariable1", variable, vars2);
     for (let i = 0; i < vars2.length; i++) {
       const pair = vars2[i].split("=");
-      console.log("getQueryVariable pair", pair);
+      // console.log("getQueryVariable pair", pair);
       if (pair[0] == variable) {
         return pair[1];
       }
