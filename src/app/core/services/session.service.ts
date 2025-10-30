@@ -55,16 +55,16 @@ export class SessionService {
   }
 
   getSession(userId: string, appName: string, sessionId: string) {
-    console.log('【getSession】 this.apiServerDomain: ', this.apiServerDomain, 
-      '\nuserId:', userId, ', appName:', appName, ', sessionId:', sessionId,
-      '\nwindow.runtimeConfig:', (window as any)['runtimeConfig'],
-        URLUtil.getApiServerBaseUrl() 
+    // console.log('【getSession】 this.apiServerDomain: ', this.apiServerDomain, 
+    //   '\nuserId:', userId, ', appName:', appName, ', sessionId:', sessionId,
+    //   '\nwindow.runtimeConfig:', (window as any)['runtimeConfig'],
+    //     URLUtil.getApiServerBaseUrl() 
 
       
-    );
+    // );
     const url = (this.apiServerDomain ? this.apiServerDomain : URLUtil.getApiServerBaseUrl()) +
         `/apps/${appName}/users/${userId}/sessions/${sessionId}`;
-    console.log('---- 刷新Session, 请求URL: ', url);
+    // console.log('---- 刷新Session, 请求URL: ', url);
     return this.http.get<any>(url);
   }
 

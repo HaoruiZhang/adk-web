@@ -250,7 +250,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   private runTaskListener = (event: MessageEvent) => {
-    console.log('📢📢 【_runTaskListener】iframe接收事件: ', event.data.key, '\n---- 消息体: ', event.data);
+    console.log('📢📢 【iframe接收到消息】', event.data.key, '\n  ---- event.data: ', event.data);
     if(!event.data) return;
     switch(event.data.key){
       case 'startRunTask':
@@ -276,7 +276,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           this.openSnackBar( event.data.msg || 'Submit task error.', 'OK');
         } 
         break;
-      case 'submit-form-config':
+      case 'submitFormConfig':
         console.log('  ---- 提交表单',
           '\n   ---- formEventID: ', localStorage.getItem('formEventID'),
           '\n   ---- eventData: ', this.eventData,
@@ -1068,15 +1068,15 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private insertMessageBeforeLoadingMessage(message: any) {
-    console.log('📩【insertMessageBeforeLoadingMessage】, message:', message)
-    console.log('   ---- 当前messages:', this.messages)
+    console.log('📩【insertMessageBeforeLoadingMessage】, message:', message, this.messages)
+    // console.log('   ---- 当前messages:', this.messages)
     const lastMessage = this.messages[this.messages.length - 1];
     const messagesToInsert = Array.isArray(message) ? message : [message];
     if (lastMessage?.isLoading) {
-      console.log('     ---- 在loading消息前插入消息: ', messagesToInsert);
+      // console.log('     ---- 在loading消息前插入消息: ', messagesToInsert);
       this.messages.splice(this.messages.length - 1, 0, ...messagesToInsert);
     } else {
-      console.log('     ---- 直接在末尾插入消息: ', messagesToInsert);
+      // console.log('     ---- 直接在末尾插入消息: ', messagesToInsert);
       this.messages.push(...messagesToInsert);
     }
     this.messagesSubject.next(this.messages);

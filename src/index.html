@@ -60,7 +60,7 @@ localStorage.setItem("userId", userId || 'user');
 console.log('getQueryVariable', getQueryVariable('userId'));
 </script>
 </body>
-<script>window.addEventListener('message',(event)=>{console.log('iframe页面接收到消息, event: ',event);if(event.data.key==='drop-file'){const {path, name}=event.data;const inputEle=document.querySelector('.mat-mdc-form-field-infix.ng-tns-c594611921-1').querySelector('textarea');inputEle.value=`${inputEle.value} ${path}`;inputEle.dispatchEvent(new Event('input', { bubbles: true }));};});</script>
+<script>window.addEventListener('message',(event)=>{if(event.data.key==='drop-file'){const {path, name}=event.data;const inputEle=document.querySelector('.mat-mdc-form-field-infix.ng-tns-c594611921-1').querySelector('textarea');inputEle.value=`${inputEle.value} ${path}`;inputEle.dispatchEvent(new Event('input', { bubbles: true }));};});</script>
 
 <style>
 pre {
