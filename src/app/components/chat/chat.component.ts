@@ -1388,9 +1388,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if(!this.messages.length){
-      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!);
-    }
+    // if(!this.messages.length){
+    //   this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!);
+    // }
     this.webSocketService.closeConnection();
   }
   // 监听浏览器关闭或刷新
@@ -1401,9 +1401,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       clearInterval(this.updateSessionInterval);
       this.updateSessionInterval = null;
     }
-    if (!this.messages.length) {
-      this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe();
-    }
+    // if (!this.messages.length) {
+    //   this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe();
+    // }
   }
 
   onAppSelection(event: any) {
@@ -1635,15 +1635,15 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
       clearInterval(this.updateSessionInterval);
       this.updateSessionInterval = null;
     }
-    if(!this.messages.length){
-      console.log('⚠️ ---- Deleting session as no messages found');
-      try{
-        this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe();
-        this.sessionTab.refreshSession();
-      }catch (e) {
-        console.error('❌ ---- Error deleting session:', e);
-      }
-    }
+    // if(!this.messages.length){
+    //   console.log('⚠️ ---- Deleting session as no messages found');
+    //   try{
+    //     this.sessionService.deleteSession(this.userId, this.appName, this.sessionId || window.sessionStorage.getItem('sessionId')!).subscribe();
+    //     this.sessionTab.refreshSession();
+    //   }catch (e) {
+    //     console.error('❌ ---- Error deleting session:', e);
+    //   }
+    // }
     this.traceService.resetTraceService();
     this.sessionId = session.id;
     window.sessionStorage.setItem('sessionId', session.id);
