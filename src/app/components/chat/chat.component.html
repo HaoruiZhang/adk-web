@@ -324,7 +324,7 @@
           <div #videoContainer></div>
           @for (message of messages; track message; let i = $index) {
             @if ((message.text && message.text.startsWith("<backend-reply-start>"))
-               || (message.functionResponse && message.functionResponse.hideInChat) && message.role === 'bot') {
+               || (message.functionResponse && message.functionResponse.hideInChat) && message.role === 'bot' || (message.taskInfo && message.taskInfo.state!=="success"))  {
               } @else {
             <div
               [ngClass]="{
@@ -418,6 +418,7 @@
                         } @else {
                           <markdown
                             class="message-text"
+                            [attr.data-eventId]="message.eventId"
                             [data]="message.text"
                             [ngStyle]="{
                               'font-style': message.thought ? 'italic' : 'normal',

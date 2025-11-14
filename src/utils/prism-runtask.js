@@ -35,9 +35,14 @@
 	/** @param {TaskInfo} taskInfo */
 	function runTask(taskInfo) {
 		// Simulate a task execution
+		console.log("----window.sessionStorage.getItem('sessionId'): ", window.sessionStorage.getItem('sessionId'));
+		console.log("----window.sessionStorage.getItem('isUserNewMessage'): ", window.sessionStorage.getItem('isUserNewMessage'));
+		const eventId = taskInfo.getEventID();
+		console.log('getEventID', eventId);
+		window.sessionStorage.setItem('isUserNewMessage', 'true');
 		try {
 			window.parent.postMessage(
-				{ key: 'workflowContent', type: 'workflowContent', text: taskInfo.getText(), session: window.sessionStorage.getItem('sessionId') },
+				{ key: 'workflowContent', type: 'workflowContent', text: taskInfo.getText(), session: window.sessionStorage.getItem('sessionId'), eventId: eventId },
 				'*'
 			);
 			taskInfo.running();
@@ -103,6 +108,23 @@
 		}
 		return settings;
 	}
+
+	/**
+	 * Traverses up the DOM tree to find the data-eventId attribute.
+	 *
+	 * @param {Element} startElement An element to start from.
+	 * @returns {string|null} The eventId value or null if not found.
+	 */
+	function getEventId(startElement) {
+		var element = startElement;
+		while (element) {
+			if (element.hasAttribute('data-eventId')) {
+				return element.getAttribute('data-eventId');
+			}
+			element = element.parentElement;
+		}
+		return null;
+	}
 	// window.addEventListener('message', (event) => {
 	// 	console.log('prism页面接收到消息, event: ', event);
 	// 	if (event.data.key === 'task-state') {
@@ -115,8 +137,8 @@
 
 	Prism.plugins.toolbar.registerButton('run-task', function (env) {
 		if (!['python', 'bash', 'r'].includes(env.language)) return;
-		const userId = localStorage.getItem('userId');
-		if (!userId || !['zhanghaorui', 'zhanhaojia', 'liqingjiao','liugaotong','zhongzheng','luhuifang', 'zhaoxiong'].includes(userId)) return;
+		// const userId = localStorage.getItem('userId');
+		// if (!userId || !['zhanghaorui', 'zhanhaojia', 'liqingjiao','liugaotong','zhongzheng','luhuifang', 'zhaoxiong'].includes(userId)) return;
 		var element = env.element;
 
 		var settings = getSettings(element);
@@ -132,6 +154,9 @@
 		registerRunTask(linkRun, {
 			getText: function () {
 				return `\`\`\`${env.language}\n${element.textContent}\n\`\`\``;
+			},
+			getEventID: function(){
+				return getEventId(env.element);
 			},
 			getLanguage: function () {
 				return env.language;

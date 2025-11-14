@@ -113,7 +113,6 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   isEvalCaseEditing = signal(false);
   hasEvalCaseChanged = signal(false);
   isEvalEditMode = signal(false);
-  isUserNewMessage = false;
   videoElement!: HTMLVideoElement;
   currentMessage = '';
   updateSessionInterval: any;
@@ -274,7 +273,17 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           }
           this.handleLoading(false);
           this.openSnackBar( event.data.msg || 'Submit task error.', 'OK');
-        } 
+        } else if(event.data.state === 'success'){
+          const eventId = event.data.eventId;
+          for(let i =0; i<this.messages.length;i++){
+            const message = this.messages[i];
+            if(message.eventId === eventId && message.taskInfo){
+              console.log("==== 找到成功运行的message: ", message);
+              message.taskInfo.state = 'success'
+              break;
+            }
+          }
+        }
         break;
       case 'submitFormConfig':
         console.log('  ---- 提交表单',
@@ -435,7 +444,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         this.userFormConfig = fields;
         localStorage.setItem('formEventID', lastMessage.eventId);
         localStorage.setItem('formMsgIndex', this.messages.length.toString());
-        this.isUserNewMessage && window.parent.postMessage(
+        window.sessionStorage.getItem('isUserNewMessage')==='true' && window.parent.postMessage(
           { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
           '*'
         );
@@ -449,7 +458,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         const scriptContent = this.extractScriptContent(lastMessage.text);
         if (scriptContent){
           // console.log('---- 脚本内容: ', scriptContent);
-          this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
+          window.sessionStorage.getItem('isUserNewMessage')==='true' && window.parent.postMessage( // 新对话的才自动执行
             { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' , eventId: localStorage.getItem('finalEventId')!}, 
             '*'
           );
@@ -458,7 +467,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
         );
           this.insertMessageBeforeLoadingMessage( [ 
             lastMessage,
-            {...lastMessage, taskInfo: { eventId: localStorage.getItem('finalEventId')!, sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!}
+            {...lastMessage, taskInfo: { eventId: localStorage.getItem('finalEventId')!, sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')!, state: 'success'}
             }
           ] );
         }
@@ -528,7 +537,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async sendMessage(event: Event) {
-    this.isUserNewMessage = true;
+    window.sessionStorage.setItem('isUserNewMessage', 'true');   
     if (this.messages.length === 0) {
       this.scrollContainer.nativeElement.addEventListener('wheel', () => {
         this.scrollInterruptedSubject.next(true);
@@ -764,6 +773,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           // window.addEventListener('message', resultListener);
         }
       }
+      
     } else if (!part.thought) {
       this.isModelThinkingSubject.next(false);
       this.storeEvents(part, chunkJson, index);
@@ -912,7 +922,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           this.userFormConfig = fields;
           localStorage.setItem('formEventID', e?.eventId);
           localStorage.setItem('formMsgIndex', this.messages.length.toString());
-          this.isUserNewMessage && window.parent.postMessage(
+          window.sessionStorage.getItem('isUserNewMessage')==='true' && window.parent.postMessage(
             { key: 'userFormConfig', type: 'userFormConfig', data: this.userFormConfig }, 
             '*'
           );
@@ -927,7 +937,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           if (scriptContent){
             // console.log('---- 脚本内容: ', scriptContent);
             // console.log('---- this.sessionId: ', this.sessionId, window.sessionStorage.getItem('sessionId'));
-            this.isUserNewMessage && window.parent.postMessage( // 新对话的才自动执行
+            window.sessionStorage.getItem('isUserNewMessage')==='true' && window.parent.postMessage( // 新对话的才自动执行
               { key: 'mustExecuteScript', type: 'mustExecuteScript', script: '```'+scriptContent+'\n\n```' , eventId: message.eventId}, 
               '*'
             );
@@ -936,7 +946,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
           );
             this.insertMessageBeforeLoadingMessage( [ 
               message,
-              {...message, taskInfo: { eventId: message.eventId, sessionId: this.sessionId || window.sessionStorage.getItem('sessionId')}
+              {...message, taskInfo: { eventId: message.eventId, sessionId: this.sessionId || window.sessionStorage.getItem('sessionId'), state: 'success'}
               }
             ] );
           }
@@ -1630,7 +1640,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!session || !session.id || !session.events || !session.state) {
       return;
     }
-    this.isUserNewMessage = false;
+    window.sessionStorage.setItem('isUserNewMessage', 'false'); 
     if (this.updateSessionInterval) {
       clearInterval(this.updateSessionInterval);
       this.updateSessionInterval = null;
